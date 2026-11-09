@@ -67,6 +67,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      worldserver:
+        condition: service_healthy
     volumes:
       - ${TC_ETC_PATH:-./tc-etc}:/opt/trinitycore/etc
       - ./entrypoint.sh:/opt/trinitycore/docker/entrypoint.sh:ro
