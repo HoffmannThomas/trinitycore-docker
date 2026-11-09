@@ -233,14 +233,76 @@ Each script has its own config file (`.conf`), auto-created from `.conf.dist` on
 
 Edit these files directly; changes persist across restarts.
 
+## Client Setup
+
+### 1. Install the SSL Certificate (Required)
+
+The bnetserver uses a self-signed certificate. The WoW client requires this certificate
+to be trusted. Install it on your Windows client machine:
+
+1. Download the certificate from the server:
+   ```powershell
+   scp trinitycore@YOUR_SERVER_IP:/home/trinitycore/certs/bnetserver.cert.pem C:\temp\bnetserver.cert.pem
+   ```
+2. Install as Trusted Root (PowerShell as Administrator):
+   ```powershell
+   Import-Certificate -FilePath "C:\temp\bnetserver.cert.pem" -CertStoreLocation "Cert:\LocalMachine\Root"
+   ```
+3. Restart the WoW client.
+
+### 2. Configure the Client
+
+Edit `WTF/Config.wtf` in your WoW client folder:
+```
+SET portal "YOUR_SERVER_IP"
+```
+
+For WoW 12.x, the client connects to port 1119 (bnetserver) for authentication.
+
+### 3. Launch with Burralis
+
+[Burralis](https://burralis.io/) is a custom launcher for connecting to private servers.
+
+1. Download Burralis from https://burralis.io/
+2. Copy `Burralis Game Launcher.exe` into your WoW client folder
+3. Run it from the WoW folder
+4. Log in with your server credentials
+
+> **Note**: Burralis supports Mainline clients up to 12.0.5. If your client is newer,
+> check for an updated Burralis version.
+
+### 4. Create Your Account
+
+After connecting, create an in-game account via the worldserver console:
+```bash
+docker exec trinitycore-worldserver-1 bash -c 'echo ".bnetaccount create email@domain password" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
+# Set GM level (3 = full admin)
+docker exec trinitycore-worldserver-1 bash -c 'echo ".account set gmlevel 1#1 3 -1" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
+```
+
 ## Troubleshooting
 
 ### SSL Handshake Failed
-The bnetserver uses a self-signed certificate. Install the root CA on the client:
-- Download `bnetserver.cert.pem` from the server
-- Install in Windows Trusted Root Certification Authorities
+- Ensure the certificate is installed in "Trusted Root Certification Authorities" (Local Machine)
+- Restart the WoW client after installing
+- Check Burralis settings for certificate verification options
 
 ### Realmlist Configuration
+For remote clients, update the realmlist table:
+```sql
+UPDATE auth.realmlist SET address = 'YOUR_SERVER_IP', localAddress = 'YOUR_SERVER_IP' WHERE id = 1;
+```
+
+### No Map Data
+The worldserver exits if DBC/map files are missing. Ensure `/data` contains `dbc/`, `maps/`, etc.
+
+### Logs Not Showing
+The entrypoint tails log files to stdout. Check `/data/logs/` inside the container.
+
+### Burralis Connection Issues
+- Ensure Burralis is configured with the correct server IP
+- Check that port 1119 is not blocked by Windows Firewall
+- Verify the WoW client version matches the server (12.1.5.70783)
 For remote clients, update the realmlist table:
 ```sql
 UPDATE auth.realmlist SET address = 'YOUR_SERVER_IP', localAddress = 'YOUR_SERVER_IP' WHERE id = 1;
