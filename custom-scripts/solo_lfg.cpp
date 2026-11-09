@@ -11,7 +11,6 @@
 #include "Player.h"
 #include "Group.h"
 #include "LFGMgr.h"
-#include "LFGScripts.h"
 #include "Chat.h"
 #include "Config.h"
 
@@ -25,11 +24,25 @@ public:
 
     void OnLogin(Player* player, bool /*loginFirst*/) override
     {
+        if (!SoloLFGEnable)
+            return;
+
+        ChatHandler(player->GetSession()).SendSysMessage(
+            "SoloLFG: " + std::string(SoloLFGEnable ? "Enabled" : "Disabled") +
+            " | Solo queue: " + std::string(SoloLFGAllowSoloQueue ? "Allowed" : "Disabled"));
+    }
+
+    void OnMapChanged(Player* player) override
+    {
         if (!SoloLFGEnable || !SoloLFGAllowSoloQueue)
             return;
 
-        // Inform player about solo LFG
-        ChatHandler(player->GetSession()).SendSysMessage("Solo LFG is enabled. You can queue for dungeons alone.");
+        // Check if player is in a dungeon via LFG
+        if (player->GetGroup() && player->GetGroup()->isLFGGroup())
+        {
+            ChatHandler(player->GetSession()).SendSysMessage(
+                "SoloLFG: Entered LFG dungeon. Solo play active.");
+        }
     }
 };
 
@@ -40,15 +53,31 @@ public:
 
     void OnAddMember(Group* group, ObjectGuid guid) override
     {
-        // Allow solo groups to form
         if (!SoloLFGEnable)
             return;
 
-        // If group has only 1 member and SoloLFG is enabled, mark as solo
         if (group->GetMembersCount() == 1)
         {
-            // Log solo group creation
             TC_LOG_INFO("scripts", "SoloLFG: Player {} created solo group", guid.ToString());
+        }
+    }
+
+    void OnDisband(Group* group) override
+    {
+        if (!SoloLFGEnable)
+            return;
+
+        // Check if this was a solo LFG group
+        if (group->isLFGGroup())
+        {
+            for (GroupReference const& ref : group->GetMembers())
+            {
+                if (ref.GetSource() && ref.GetSource()->IsInWorld())
+                {
+                    ChatHandler(ref.GetSource()->GetSession()).SendSysMessage(
+                        "SoloLFG: Left LFG dungeon. Scaling deactivated.");
+                }
+            }
         }
     }
 };
