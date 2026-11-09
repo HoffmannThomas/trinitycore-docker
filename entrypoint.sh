@@ -5,6 +5,7 @@ PREFIX=/opt/trinitycore
 ETC=$PREFIX/etc
 BIN=$PREFIX/bin
 DATA=/data
+HELPER_DIR=$PREFIX/docker
 
 # Environment variables with defaults
 SERVER_IP="${SERVER_IP:-127.0.0.1}"
@@ -17,10 +18,20 @@ DB_NAME_WORLD="${DB_NAME_WORLD:-world}"
 DB_NAME_CHAR="${DB_NAME_CHAR:-characters}"
 DB_NAME_HOTFIX="${DB_NAME_HOTFIX:-hotfixes}"
 
+# Config files to manage (main + solo script configs)
+CONFIG_FILES="bnetserver worldserver solocraft solo_lfg"
+
 # Ensure default config files exist (copy once from .dist)
-for name in bnetserver worldserver; do
-    if [ ! -f "$ETC/$name.conf" ] && [ -f "$ETC/$name.conf.dist" ]; then
-        cp "$ETC/$name.conf.dist" "$ETC/$name.conf"
+# .dist files are bundled in the image at $HELPER_DIR/
+for name in $CONFIG_FILES; do
+    if [ ! -f "$ETC/$name.conf" ]; then
+        if [ -f "$HELPER_DIR/$name.conf.dist" ]; then
+            cp "$HELPER_DIR/$name.conf.dist" "$ETC/$name.conf"
+            echo "Created $name.conf from template"
+        elif [ -f "$ETC/$name.conf.dist" ]; then
+            cp "$ETC/$name.conf.dist" "$ETC/$name.conf"
+            echo "Created $name.conf from .dist"
+        fi
     fi
 done
 
@@ -44,19 +55,6 @@ if [ ! -f "$MARKER" ]; then
         sed -i "s#^[[:space:]]*CharacterDatabaseInfo[[:space:]]*=.*#CharacterDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_CHAR}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
         sed -i "s#^[[:space:]]*HotfixDatabaseInfo[[:space:]]*=.*#HotfixDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_HOTFIX}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
         sed -i 's#^[[:space:]]*LogsDir[[:space:]]*=.*#LogsDir = "/data/logs"#' "$ETC/worldserver.conf" 2>/dev/null || true
-        # Solo scripts configuration (added by TrinityCore Docker stack)
-        if ! grep -q "SoloCraft.Enable" "$ETC/worldserver.conf" 2>/dev/null; then
-            cat >> "$ETC/worldserver.conf" << 'SOLEOF'
-
-# Solo Scripts (TrinityCore Docker)
-SoloCraft.Enable = 1
-SoloCraft.HealthMultiplier = 5.0
-SoloCraft.DamageMultiplier = 3.0
-SoloCraft.Announce = 1
-SoloLFG.Enable = 1
-SoloLFG.AllowSoloQueue = 1
-SOLEOF
-        fi
     fi
     touch "$MARKER"
     echo "Initial Docker configuration applied. Edit .conf files freely; changes persist across restarts."

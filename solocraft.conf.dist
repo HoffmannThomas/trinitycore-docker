@@ -1,0 +1,17 @@
+# SoloCraft Configuration
+# Copy this file to solocraft.conf and edit as needed.
+# All values are optional; defaults are shown.
+
+# Enable SoloCraft creature scaling
+SoloCraft.Enable = 1
+
+# Health multiplier for solo players (divided by party size)
+# 1 player = 5x, 2 players = 2.5x, 5 players = 1x
+SoloCraft.HealthMultiplier = 5.0
+
+# Damage multiplier for solo players (divided by party size)
+# 1 player = 3x, 2 players = 1.5x, 5 players = 1x
+SoloCraft.DamageMultiplier = 3.0
+
+# Announce scaling to players in chat
+SoloCraft.Announce = 1

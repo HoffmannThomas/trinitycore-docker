@@ -1,0 +1,9 @@
+# SoloLFG Configuration
+# Copy this file to solo_lfg.conf and edit as needed.
+# All values are optional; defaults are shown.
+
+# Enable SoloLFG notifications
+SoloLFG.Enable = 1
+
+# Allow solo players to queue for dungeons alone
+SoloLFG.AllowSoloQueue = 1

@@ -76,6 +76,7 @@ cd TrinityCore
 
 # 2. Clone this docker stack INTO the TrinityCore repo as 'docker/'
 git clone https://github.com/HoffmannThomas/trinitycore-docker.git docker
+# Or: cp -r /path/to/trinitycore-docker/docker ./
 
 # 3. Configure
 cp docker/.env.example docker/.env
@@ -171,11 +172,13 @@ Scales creature health and damage for solo players in dungeons.
 - Health multiplier: `5.0 / player_count`
 - Damage multiplier: `3.0 / player_count`
 - Only activates in dungeon/raid instances
+- Config: `solocraft.conf` (auto-created from `solocraft.conf.dist`)
 
 ### SoloLFG
 Enables solo dungeon finder notifications.
 - Notifies players on login that Solo LFG is available
 - Logs solo group creation
+- Config: `solo_lfg.conf` (auto-created from `solo_lfg.conf.dist`)
 
 ### Installation
 Copy the `.cpp` files to `TrinityCore/src/server/scripts/Custom/` and rebuild:
@@ -186,6 +189,13 @@ mkdir build && cd build
 cmake .. -DSCRIPTS=static -DSERVERS=1 -DTOOLS=1
 make -j$(nproc)
 ```
+
+### Configuration
+Each script has its own config file (`.conf`), auto-created from `.conf.dist` on first run:
+- `solocraft.conf` — SoloCraft settings
+- `solo_lfg.conf` — SoloLFG settings
+
+Edit these files directly; changes persist across restarts.
 
 ## Troubleshooting
 
