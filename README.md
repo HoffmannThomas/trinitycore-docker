@@ -92,9 +92,22 @@ docker compose build
 
 First build takes ~10-15 minutes. Subsequent builds use cached layers.
 
-### 6. Extract map data (on host, not in container)
+### 6. Build extraction tools (on host)
 
-CascLib has issues with network filesystems. Run extractors natively:
+The Docker image includes the tools, but CascLib has issues with network filesystems (CIFS/SMB).
+For WoW clients on a network share, build and run the tools natively on the host:
+
+```bash
+cd /home/trinitycore/TrinityCore
+mkdir -p tc-host-build && cd tc-host-build
+cmake .. -DTOOLS=1 -DSERVERS=0 -DSCRIPTS=0 -DCMAKE_BUILD_TYPE=Release
+make -j$(nproc)
+# Tools are in: tc-host-build/bin/Release/bin/
+```
+
+### 7. Extract map data (on host, not in container)
+
+Run extractors from the WoW client directory:
 
 ```bash
 cd /mnt/wow-client
@@ -110,7 +123,7 @@ mkdir -p /home/trinitycore/tc-data
 cp -r dbc maps gt cameras vmaps mmaps /home/trinitycore/tc-data/
 ```
 
-### 7. Start the stack
+### 8. Start the stack
 
 ```bash
 cd /home/trinitycore/trinitycore-docker/docker
@@ -119,7 +132,7 @@ docker compose up -d
 
 First start downloads TDB (master) and auto-populates databases (~5-10 minutes).
 
-### 8. Create admin account
+### 9. Create admin account
 
 ```bash
 # Send command to worldserver console
