@@ -1,0 +1,23 @@
+# Build artifacts
+build/
+*.o
+*.a
+*.so
+*.exe
+
+# Docker volumes
+tc-data/
+tc-etc/
+tc-logs/
+
+# Environment
+.env
+*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

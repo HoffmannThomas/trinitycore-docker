@@ -1,0 +1,106 @@
+# docker-compose.yml - TrinityCore (master) built from source
+# Place this file (and Dockerfile, entrypoint.sh) in <repo>/docker
+# Build context is the repository root.
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: trinity
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ../sql/base/auth_database.sql:/docker-entrypoint-initdb.d/02-auth.sql:ro
+      - ../sql/base/characters_database.sql:/docker-entrypoint-initdb.d/03-characters.sql:ro
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ptrinity"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  tdb-init:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: trinitycore:master
+    volumes:
+      - tdb_data:/tdb
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        cd /tdb
+        if [ ! -f TDB_full_*.sql ]; then
+          echo "Downloading TDB (master)..."
+          curl -L -o TDB_full.7z https://github.com/TrinityCore/TrinityCore/releases/download/TDB1210.26091/TDB_full_1210.26091_2026_09_09.7z
+          7z x -y TDB_full.7z
+          rm -f TDB_full.7z
+        fi
+        echo "TDB ready."
+    restart: "no"
+
+  bnetserver:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: trinitycore:master
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./tc-etc:/opt/trinitycore/etc
+      - tc_data:/data
+      - ./entrypoint.sh:/opt/trinitycore/docker/entrypoint.sh:ro
+    environment:
+      TC_SERVICE: bnetserver
+    entrypoint: ["/bin/bash", "/opt/trinitycore/docker/entrypoint.sh"]
+    command: ["bnetserver"]
+    ports:
+      - "1119:1119"
+      - "8081:8081"
+    restart: unless-stopped
+
+  worldserver:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: trinitycore:master
+    depends_on:
+      db:
+        condition: service_healthy
+      tdb-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./tc-etc:/opt/trinitycore/etc
+      - ./tc-data:/data
+      - tdb_data:/tdb
+      - ./entrypoint.sh:/opt/trinitycore/docker/entrypoint.sh:ro
+    working_dir: /tdb
+    environment:
+      TC_SERVICE: worldserver
+    entrypoint: ["/bin/bash", "/opt/trinitycore/docker/entrypoint.sh"]
+    command: ["worldserver"]
+    ports:
+      - "8085:8085"
+    restart: unless-stopped
+
+  extractor:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: trinitycore:master
+    profiles: ["tools"]
+    volumes:
+      - tc_data:/data
+      - /path/to/wow/client:/client:ro
+    entrypoint: []
+    command: ["/bin/bash", "-c", "cd /client && /opt/trinitycore/bin/mapextractor && mkdir -p vmaps && /opt/trinitycore/bin/vmap4extractor && /opt/trinitycore/bin/vmap4assembler Buildings vmaps && mkdir -p mmaps && /opt/trinitycore/bin/mmaps_generator && cp -r dbc maps gt cameras vmaps mmaps /data 2>/dev/null; echo Done"]
+    restart: "no"
+
+volumes:
+  db_data:
+  tc_data:
+  tdb_data:
