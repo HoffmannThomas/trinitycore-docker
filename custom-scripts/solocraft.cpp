@@ -43,14 +43,14 @@ public:
 
         ChatHandler(player->GetSession()).SendSysMessage(
             "SoloCraft: " + std::string(enable ? "Enabled" : "Disabled") +
-            " | HP multiplier: " + std::to_string(hpMult) +
-            " | DMG multiplier: " + std::to_string(dmgMult) +
+            " | Group-equivalent: " + std::to_string((int)hpMult) + " players" +
+            " | Solo HP scale: 1/" + std::to_string((int)hpMult) +
+            " | Solo DMG scale: 1/" + std::to_string((int)dmgMult) +
             " | Level scaling: " + std::string(levelScaling ? "ON" : "OFF"));
     }
 
     void OnMapChanged(Player* player) override
     {
-        TC_LOG_INFO("scripts", "SoloCraft: OnMapChanged called for player {}", player->GetName());
         bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
         bool announce = sConfigMgr->GetBoolDefault("SoloCraft.Announce", true);
         if (!enable)
@@ -98,14 +98,14 @@ public:
         bool levelScaling = sConfigMgr->GetBoolDefault("SoloCraft.LevelScaling", true);
         float minLevelRatio = sConfigMgr->GetFloatDefault("SoloCraft.MinLevelRatio", 0.5f);
 
-        float healthMult = hpMultCfg / (float)playerCount;
-        float damageMult = dmgMultCfg / (float)playerCount;
+        float healthMult = (float)playerCount / hpMultCfg;
+        float damageMult = (float)playerCount / dmgMultCfg;
 
         std::string scalingInfo = "SoloCraft: Dungeon scaling active. Group size: " + std::to_string(playerCount) +
             " | Levels: " + std::to_string(minLevel) + "-" + std::to_string(maxLevel) +
             " (avg " + std::to_string((int)meanLevel) + ")" +
-            " | Config: HP x" + std::to_string(hpMultCfg) +
-            ", DMG x" + std::to_string(dmgMultCfg);
+            " | Config: group-equiv HP=" + std::to_string((int)hpMultCfg) +
+            ", DMG=" + std::to_string((int)dmgMultCfg);
 
         if (levelScaling)
         {
@@ -145,6 +145,9 @@ private:
             if (!creature || !creature->IsInWorld())
                 continue;
 
+            // Store original HP before any modifications
+            uint32 originalHealth = creature->GetMaxHealth();
+
             uint8 creatureLevel = creature->GetLevel();
             float finalHealthMult = healthMult;
             float finalDamageMult = damageMult;
@@ -161,10 +164,13 @@ private:
                 creature->SetLevel((uint8)meanLevel);
             }
 
-            if (finalHealthMult < 1.0f) finalHealthMult = 1.0f;
-            if (finalDamageMult < 1.0f) finalDamageMult = 1.0f;
+            // Floor at 0.05 to prevent zero/negative HP
+            if (finalHealthMult < 0.05f) finalHealthMult = 0.05f;
+            if (finalDamageMult < 0.05f) finalDamageMult = 0.05f;
 
-            uint32 newHealth = (uint32)(creature->GetMaxHealth() * finalHealthMult);
+            // Apply scaling to ORIGINAL HP (not recalculated HP from SetLevel)
+            uint32 newHealth = (uint32)(originalHealth * finalHealthMult);
+            if (newHealth < 1) newHealth = 1;
             creature->SetMaxHealth(newHealth);
             creature->SetHealth(newHealth);
 

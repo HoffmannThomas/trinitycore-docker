@@ -1,28 +1,22 @@
 [worldserver]
 
 # SoloCraft Configuration
-# Copy this file to solocraft.conf and edit as needed.
-# All values are optional; defaults are shown.
 
 # Enable SoloCraft creature scaling
 SoloCraft.Enable = 1
 
 # Health multiplier for solo players (divided by party size)
-# 1 player = 5x, 2 players = 2.5x, 5 players = 1x
-SoloCraft.HealthMultiplier = 5.0
+# Content tuning applies massive HP multipliers in dungeons.
+# For Deadmines: 100-500 recommended for solo play.
+SoloCraft.HealthMultiplier = 100.0
 
 # Damage multiplier for solo players (divided by party size)
-# 1 player = 3x, 2 players = 1.5x, 5 players = 1x
-SoloCraft.DamageMultiplier = 3.0
-
-# Enable level-based scaling (scale creatures to player level)
-SoloCraft.LevelScaling = 1
-
-# Minimum scale ratio (prevent over-nerfing for large level gaps)
-SoloCraft.MinLevelRatio = 0.5
-
-# Max level difference between players in a group (0 = no limit)
-SoloCraft.MaxLevelDiff = 10
+SoloCraft.DamageMultiplier = 50.0
 
 # Announce scaling to players in chat
 SoloCraft.Announce = 1
+
+# Level-based scaling (adjusts creature level to player level)
+SoloCraft.LevelScaling = 1
+SoloCraft.MinLevelRatio = 0.5
+SoloCraft.MaxLevelDiff = 10
