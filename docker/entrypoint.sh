@@ -6,6 +6,9 @@ ETC=$PREFIX/etc
 BIN=$PREFIX/bin
 DATA=/data
 
+# Server IP (from environment or default)
+SERVER_IP="${SERVER_IP:-YOUR_SERVER_IP}"
+
 # Ensure default config files exist
 for name in bnetserver worldserver; do
     if [ ! -f "$ETC/$name.conf" ] && [ -f "$ETC/$name.conf.dist" ]; then
@@ -18,8 +21,8 @@ if [ -f "$ETC/bnetserver.conf" ]; then
     sed -i 's#^[[:space:]]*LoginDatabaseInfo[[:space:]]*=.*#LoginDatabaseInfo = "db;3306;trinity;trinity;auth"#' "$ETC/bnetserver.conf" 2>/dev/null || true
     sed -i 's#^[[:space:]]*CertificatesFile[[:space:]]*=.*#CertificatesFile = "/opt/trinitycore/bin/bnetserver.cert.pem"#' "$ETC/bnetserver.conf" 2>/dev/null || true
     sed -i 's#^[[:space:]]*PrivateKeyFile[[:space:]]*=.*#PrivateKeyFile = "/opt/trinitycore/bin/bnetserver.key.pem"#' "$ETC/bnetserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*LoginREST\.ExternalAddress[[:space:]]*=.*#LoginREST.ExternalAddress = "YOUR_SERVER_IP"#' "$ETC/bnetserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*LoginREST\.LocalAddress[[:space:]]*=.*#LoginREST.LocalAddress = "YOUR_SERVER_IP"#' "$ETC/bnetserver.conf" 2>/dev/null || true
+    sed -i "s#^[[:space:]]*LoginREST\\.ExternalAddress[[:space:]]*=.*#LoginREST.ExternalAddress = \"${SERVER_IP}\"#" "$ETC/bnetserver.conf" 2>/dev/null || true
+    sed -i "s#^[[:space:]]*LoginREST\\.LocalAddress[[:space:]]*=.*#LoginREST.LocalAddress = \"${SERVER_IP}\"#" "$ETC/bnetserver.conf" 2>/dev/null || true
 fi
 if [ -f "$ETC/worldserver.conf" ]; then
     sed -i 's#^[[:space:]]*DataDir[[:space:]]*=.*#DataDir = "/data"#' "$ETC/worldserver.conf" 2>/dev/null || true
@@ -50,14 +53,11 @@ esac
 # Start server in background with stdin from a named pipe (allows docker exec commands)
 # Tail its log to stdout for Docker log capture
 if [ -n "$LOGFILE" ]; then
-    # Create a named pipe for console commands
     PIPE="/tmp/worldserver.cmd"
     rm -f "$PIPE"
     mkfifo "$PIPE"
-    # Start server reading from pipe (blocks until input, but we feed it)
     "$BIN/$1" < "$PIPE" &
     SERVER_PID=$!
-    # Feed empty input to keep it running, then keep pipe open
     (while true; do sleep 1; done) > "$PIPE" &
     PIPE_WRITER=$!
     for i in $(seq 1 60); do

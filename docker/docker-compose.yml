@@ -1,21 +1,22 @@
 # docker-compose.yml - TrinityCore (master) built from source
 # Place this file (and Dockerfile, entrypoint.sh) in <repo>/docker
 # Build context is the repository root.
+# Configure via .env file (copy .env.example to .env)
 
 services:
   db:
     image: mysql:8.4
     environment:
-      MYSQL_ROOT_PASSWORD: trinity
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-trinity}
     volumes:
       - db_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ../sql/base/auth_database.sql:/docker-entrypoint-initdb.d/02-auth.sql:ro
-      - ../sql/base/characters_database.sql:/docker-entrypoint-initdb.d/03-characters.sql:ro
+      - ${TRINITYCORE_SRC:-/home/trinitycore/TrinityCore}/sql/base/auth_database.sql:/docker-entrypoint-initdb.d/02-auth.sql:ro
+      - ${TRINITYCORE_SRC:-/home/trinitycore/TrinityCore}/sql/base/characters_database.sql:/docker-entrypoint-initdb.d/03-characters.sql:ro
     ports:
       - "3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ptrinity"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${MYSQL_ROOT_PASSWORD:-trinity}"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -51,10 +52,13 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./tc-etc:/opt/trinitycore/etc
+      - ${TC_ETC_PATH:-./tc-etc}:/opt/trinitycore/etc
       - ./entrypoint.sh:/opt/trinitycore/docker/entrypoint.sh:ro
+      - ${CERT_PATH:-./certs}/bnetserver.cert.pem:/opt/trinitycore/bin/bnetserver.cert.pem:ro
+      - ${CERT_PATH:-./certs}/bnetserver.key.pem:/opt/trinitycore/bin/bnetserver.key.pem:ro
     environment:
       TC_SERVICE: bnetserver
+      SERVER_IP: ${SERVER_IP:-127.0.0.1}
     entrypoint: ["/bin/bash", "/opt/trinitycore/docker/entrypoint.sh"]
     command: ["bnetserver"]
     ports:
@@ -73,13 +77,14 @@ services:
       tdb-init:
         condition: service_completed_successfully
     volumes:
-      - ./tc-etc:/opt/trinitycore/etc
-      - ./tc-data:/data
+      - ${TC_ETC_PATH:-./tc-etc}:/opt/trinitycore/etc
+      - ${TC_DATA_PATH:-./tc-data}:/data
       - tdb_data:/tdb
       - ./entrypoint.sh:/opt/trinitycore/docker/entrypoint.sh:ro
     working_dir: /tdb
     environment:
       TC_SERVICE: worldserver
+      SERVER_IP: ${SERVER_IP:-127.0.0.1}
     entrypoint: ["/bin/bash", "/opt/trinitycore/docker/entrypoint.sh"]
     command: ["worldserver"]
     ports:
@@ -93,8 +98,8 @@ services:
     image: trinitycore:master
     profiles: ["tools"]
     volumes:
-      - ./tc-data:/data
-      - /path/to/wow/client:/client:ro
+      - ${TC_DATA_PATH:-./tc-data}:/data
+      - ${WOW_CLIENT_PATH:-/path/to/wow/client}:/client:ro
     entrypoint: []
     command: ["/bin/bash", "-c", "cd /client && /opt/trinitycore/bin/mapextractor && mkdir -p vmaps && /opt/trinitycore/bin/vmap4extractor && /opt/trinitycore/bin/vmap4assembler Buildings vmaps && mkdir -p mmaps && /opt/trinitycore/bin/mmaps_generator && cp -r dbc maps gt cameras vmaps mmaps /data 2>/dev/null; echo Done"]
     restart: "no"
