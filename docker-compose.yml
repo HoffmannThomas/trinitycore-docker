@@ -59,6 +59,14 @@ services:
     environment:
       TC_SERVICE: bnetserver
       SERVER_IP: ${SERVER_IP:-127.0.0.1}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-trinity}
+      DB_PASS: ${DB_PASS:-trinity}
+      DB_NAME_AUTH: ${DB_NAME_AUTH:-auth}
+      DB_NAME_WORLD: ${DB_NAME_WORLD:-world}
+      DB_NAME_CHAR: ${DB_NAME_CHAR:-characters}
+      DB_NAME_HOTFIX: ${DB_NAME_HOTFIX:-hotfixes}
     entrypoint: ["/bin/bash", "/opt/trinitycore/docker/entrypoint.sh"]
     command: ["bnetserver"]
     ports:
@@ -85,6 +93,14 @@ services:
     environment:
       TC_SERVICE: worldserver
       SERVER_IP: ${SERVER_IP:-127.0.0.1}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USER: ${DB_USER:-trinity}
+      DB_PASS: ${DB_PASS:-trinity}
+      DB_NAME_AUTH: ${DB_NAME_AUTH:-auth}
+      DB_NAME_WORLD: ${DB_NAME_WORLD:-world}
+      DB_NAME_CHAR: ${DB_NAME_CHAR:-characters}
+      DB_NAME_HOTFIX: ${DB_NAME_HOTFIX:-hotfixes}
     entrypoint: ["/bin/bash", "/opt/trinitycore/docker/entrypoint.sh"]
     command: ["worldserver"]
     ports:

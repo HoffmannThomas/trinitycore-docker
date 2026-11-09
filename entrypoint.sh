@@ -6,33 +6,47 @@ ETC=$PREFIX/etc
 BIN=$PREFIX/bin
 DATA=/data
 
-# Server IP (from environment or default)
-SERVER_IP="${SERVER_IP:-YOUR_SERVER_IP}"
+# Environment variables with defaults
+SERVER_IP="${SERVER_IP:-127.0.0.1}"
+DB_HOST="${DB_HOST:-db}"
+DB_PORT="${DB_PORT:-3306}"
+DB_USER="${DB_USER:-trinity}"
+DB_PASS="${DB_PASS:-trinity}"
+DB_NAME_AUTH="${DB_NAME_AUTH:-auth}"
+DB_NAME_WORLD="${DB_NAME_WORLD:-world}"
+DB_NAME_CHAR="${DB_NAME_CHAR:-characters}"
+DB_NAME_HOTFIX="${DB_NAME_HOTFIX:-hotfixes}"
 
-# Ensure default config files exist
+# Ensure default config files exist (copy once from .dist)
 for name in bnetserver worldserver; do
     if [ ! -f "$ETC/$name.conf" ] && [ -f "$ETC/$name.conf.dist" ]; then
         cp "$ETC/$name.conf.dist" "$ETC/$name.conf"
     fi
 done
 
-# Point database connections at the stack's db service
-if [ -f "$ETC/bnetserver.conf" ]; then
-    sed -i 's#^[[:space:]]*LoginDatabaseInfo[[:space:]]*=.*#LoginDatabaseInfo = "db;3306;trinity;trinity;auth"#' "$ETC/bnetserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*CertificatesFile[[:space:]]*=.*#CertificatesFile = "/opt/trinitycore/bin/bnetserver.cert.pem"#' "$ETC/bnetserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*PrivateKeyFile[[:space:]]*=.*#PrivateKeyFile = "/opt/trinitycore/bin/bnetserver.key.pem"#' "$ETC/bnetserver.conf" 2>/dev/null || true
-    sed -i "s#^[[:space:]]*LoginREST\\.ExternalAddress[[:space:]]*=.*#LoginREST.ExternalAddress = \"${SERVER_IP}\"#" "$ETC/bnetserver.conf" 2>/dev/null || true
-    sed -i "s#^[[:space:]]*LoginREST\\.LocalAddress[[:space:]]*=.*#LoginREST.LocalAddress = \"${SERVER_IP}\"#" "$ETC/bnetserver.conf" 2>/dev/null || true
-fi
-if [ -f "$ETC/worldserver.conf" ]; then
-    sed -i 's#^[[:space:]]*DataDir[[:space:]]*=.*#DataDir = "/data"#' "$ETC/worldserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*SourceDirectory[[:space:]]*=.*#SourceDirectory = "/opt/trinitycore"#' "$ETC/worldserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*MySQLExecutable[[:space:]]*=.*#MySQLExecutable = "/usr/bin/mysql"#' "$ETC/worldserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*LoginDatabaseInfo[[:space:]]*=.*#LoginDatabaseInfo = "db;3306;trinity;trinity;auth"#' "$ETC/worldserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*WorldDatabaseInfo[[:space:]]*=.*#WorldDatabaseInfo = "db;3306;trinity;trinity;world"#' "$ETC/worldserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*CharacterDatabaseInfo[[:space:]]*=.*#CharacterDatabaseInfo = "db;3306;trinity;trinity;characters"#' "$ETC/worldserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*HotfixDatabaseInfo[[:space:]]*=.*#HotfixDatabaseInfo = "db;3306;trinity;trinity;hotfixes"#' "$ETC/worldserver.conf" 2>/dev/null || true
-    sed -i 's#^[[:space:]]*LogsDir[[:space:]]*=.*#LogsDir = "/data/logs"#' "$ETC/worldserver.conf" 2>/dev/null || true
+# Apply initial Docker configuration only on first run.
+# After this, .conf files are left untouched so manual edits persist.
+MARKER="$ETC/.docker-configured"
+if [ ! -f "$MARKER" ]; then
+    if [ -f "$ETC/bnetserver.conf" ]; then
+        sed -i "s#^[[:space:]]*LoginDatabaseInfo[[:space:]]*=.*#LoginDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_AUTH}\"#" "$ETC/bnetserver.conf" 2>/dev/null || true
+        sed -i 's#^[[:space:]]*CertificatesFile[[:space:]]*=.*#CertificatesFile = "/opt/trinitycore/bin/bnetserver.cert.pem"#' "$ETC/bnetserver.conf" 2>/dev/null || true
+        sed -i 's#^[[:space:]]*PrivateKeyFile[[:space:]]*=.*#PrivateKeyFile = "/opt/trinitycore/bin/bnetserver.key.pem"#' "$ETC/bnetserver.conf" 2>/dev/null || true
+        sed -i "s#^[[:space:]]*LoginREST\\.ExternalAddress[[:space:]]*=.*#LoginREST.ExternalAddress = \"${SERVER_IP}\"#" "$ETC/bnetserver.conf" 2>/dev/null || true
+        sed -i "s#^[[:space:]]*LoginREST\\.LocalAddress[[:space:]]*=.*#LoginREST.LocalAddress = \"${SERVER_IP}\"#" "$ETC/bnetserver.conf" 2>/dev/null || true
+    fi
+    if [ -f "$ETC/worldserver.conf" ]; then
+        sed -i 's#^[[:space:]]*DataDir[[:space:]]*=.*#DataDir = "/data"#' "$ETC/worldserver.conf" 2>/dev/null || true
+        sed -i 's#^[[:space:]]*SourceDirectory[[:space:]]*=.*#SourceDirectory = "/opt/trinitycore"#' "$ETC/worldserver.conf" 2>/dev/null || true
+        sed -i 's#^[[:space:]]*MySQLExecutable[[:space:]]*=.*#MySQLExecutable = "/usr/bin/mysql"#' "$ETC/worldserver.conf" 2>/dev/null || true
+        sed -i "s#^[[:space:]]*LoginDatabaseInfo[[:space:]]*=.*#LoginDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_AUTH}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
+        sed -i "s#^[[:space:]]*WorldDatabaseInfo[[:space:]]*=.*#WorldDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_WORLD}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
+        sed -i "s#^[[:space:]]*CharacterDatabaseInfo[[:space:]]*=.*#CharacterDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_CHAR}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
+        sed -i "s#^[[:space:]]*HotfixDatabaseInfo[[:space:]]*=.*#HotfixDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_HOTFIX}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
+        sed -i 's#^[[:space:]]*LogsDir[[:space:]]*=.*#LogsDir = "/data/logs"#' "$ETC/worldserver.conf" 2>/dev/null || true
+    fi
+    touch "$MARKER"
+    echo "Initial Docker configuration applied. Edit .conf files freely; changes persist across restarts."
 fi
 
 mkdir -p "$DATA" /data/logs
