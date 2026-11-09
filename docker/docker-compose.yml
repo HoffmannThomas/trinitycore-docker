@@ -11,8 +11,8 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ${TRINITYCORE_SRC:-/home/trinitycore/TrinityCore}/sql/base/auth_database.sql:/docker-entrypoint-initdb.d/02-auth.sql:ro
-      - ${TRINITYCORE_SRC:-/home/trinitycore/TrinityCore}/sql/base/characters_database.sql:/docker-entrypoint-initdb.d/03-characters.sql:ro
+      - ../sql/base/auth_database.sql:/docker-entrypoint-initdb.d/02-auth.sql:ro
+      - ../sql/base/characters_database.sql:/docker-entrypoint-initdb.d/03-characters.sql:ro
     ports:
       - "3306:3306"
     healthcheck:

@@ -69,8 +69,16 @@ sudo mount -a
 ```bash
 # As trinitycore user
 cd /home/trinitycore
-git clone https://github.com/HoffmannThomas/trinitycore-docker.git
-cd trinitycore-docker
+
+# 1. Clone TrinityCore source
+git clone https://github.com/TrinityCore/TrinityCore.git
+cd TrinityCore
+
+# 2. Clone this docker stack INTO the TrinityCore repo as 'docker/'
+git clone https://github.com/HoffmannThomas/trinitycore-docker.git docker
+# Or: cp -r /path/to/trinitycore-docker/docker ./
+
+# 3. Configure
 cp docker/.env.example docker/.env
 # Edit docker/.env with your values (SERVER_IP, paths, passwords, etc.)
 ```
