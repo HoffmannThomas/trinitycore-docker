@@ -64,6 +64,8 @@ if [ ! -f "$MARKER" ]; then
         sed -i "s#^[[:space:]]*CharacterDatabaseInfo[[:space:]]*=.*#CharacterDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_CHAR}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
         sed -i "s#^[[:space:]]*HotfixDatabaseInfo[[:space:]]*=.*#HotfixDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_HOTFIX}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
         sed -i 's#^[[:space:]]*LogsDir[[:space:]]*=.*#LogsDir = "/data/logs"#' "$ETC/worldserver.conf" 2>/dev/null || true
+        # Enable scripts logger (for SoloCraft/SoloLFG debug output)
+        sed -i 's/^#Logger\.scripts=3,Console Server/Logger.scripts=3,Console Server/' "$ETC/worldserver.conf" 2>/dev/null || true
         # Add timestamps to log appenders (Flags: 1 = prefix timestamp)
         sed -i 's#^[[:space:]]*Appender\.Server[[:space:]]*=.*#Appender.Server=2,2,1,Server.log,w#' "$ETC/worldserver.conf" 2>/dev/null || true
         sed -i 's#^[[:space:]]*Appender\.Console[[:space:]]*=.*#Appender.Console=1,3,1#' "$ETC/worldserver.conf" 2>/dev/null || true
