@@ -15,10 +15,32 @@ Docker Compose stack for running [TrinityCore](https://github.com/TrinityCore/Tr
 
 ## Prerequisites
 
-- Docker Engine 24+ with Docker Compose v2
+### Host System
+- Debian 12+ / Ubuntu 22.04+ (or compatible Linux)
 - 8+ CPU cores, 16GB+ RAM, 50GB+ free disk space
-- A WoW 12.1.5 client for map extraction
 - A Linux server with a `trinitycore` user
+
+### Docker
+- Docker Engine 24+ with Docker Compose v2
+- `docker` and `docker compose` commands available
+
+### Build Tools (for native map extraction)
+```bash
+sudo apt-get install -y \
+    clang cmake make gcc g++ \
+    libmysqlclient-dev libssl-dev libbz2-dev libreadline-dev libncurses-dev \
+    libboost-all-dev p7zip \
+    cifs-utils
+```
+
+### Build Caching (optional but recommended)
+```bash
+sudo apt-get install -y ccache
+```
+
+### Other
+- A WoW 12.1.5 client for map extraction
+- SSH access to the server
 
 ## Server Setup
 
@@ -100,7 +122,8 @@ For WoW clients on a network share, build and run the tools natively on the host
 ```bash
 cd /home/trinitycore/TrinityCore
 mkdir -p tc-host-build && cd tc-host-build
-cmake .. -DTOOLS=1 -DSERVERS=0 -DSCRIPTS=0 -DCMAKE_BUILD_TYPE=Release
+cmake .. -DTOOLS=1 -DSERVERS=0 -DSCRIPTS=0 -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 make -j$(nproc)
 # Tools are in: tc-host-build/bin/Release/bin/
 ```
