@@ -1,3 +1,5 @@
+[worldserver]
+
 # SoloLFG Configuration
 # Copy this file to solo_lfg.conf and edit as needed.
 # All values are optional; defaults are shown.
