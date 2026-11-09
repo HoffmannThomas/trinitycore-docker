@@ -19,17 +19,26 @@ DB_NAME_CHAR="${DB_NAME_CHAR:-characters}"
 DB_NAME_HOTFIX="${DB_NAME_HOTFIX:-hotfixes}"
 
 # Config files to manage (main + solo script configs)
-CONFIG_FILES="bnetserver worldserver solocraft solo_lfg"
+CONFIG_FILES="bnetserver worldserver"
+SOLO_CONFIG_FILES="solocraft solo_lfg"
 
 # Ensure default config files exist (copy once from .dist)
-# .dist files are bundled in the image at $HELPER_DIR/
 for name in $CONFIG_FILES; do
-    if [ ! -f "$ETC/$name.conf" ]; then
+    if [ ! -f "$ETC/$name.conf" ] && [ -f "$ETC/$name.conf.dist" ]; then
+        cp "$ETC/$name.conf.dist" "$ETC/$name.conf"
+    fi
+done
+
+# Solo script config files go in worldserver.conf.d/ (auto-loaded by TrinityCore)
+SOLO_CONF_DIR="$ETC/worldserver.conf.d"
+mkdir -p "$SOLO_CONF_DIR"
+for name in $SOLO_CONFIG_FILES; do
+    if [ ! -f "$SOLO_CONF_DIR/$name.conf" ]; then
         if [ -f "$HELPER_DIR/$name.conf.dist" ]; then
-            cp "$HELPER_DIR/$name.conf.dist" "$ETC/$name.conf"
+            cp "$HELPER_DIR/$name.conf.dist" "$SOLO_CONF_DIR/$name.conf"
             echo "Created $name.conf from template"
         elif [ -f "$ETC/$name.conf.dist" ]; then
-            cp "$ETC/$name.conf.dist" "$ETC/$name.conf"
+            cp "$ETC/$name.conf.dist" "$SOLO_CONF_DIR/$name.conf"
             echo "Created $name.conf from .dist"
         fi
     fi
