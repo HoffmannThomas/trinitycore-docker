@@ -76,7 +76,7 @@ cd TrinityCore
 
 # 2. Clone this docker stack INTO the TrinityCore repo as 'docker/'
 git clone https://github.com/HoffmannThomas/trinitycore-docker.git docker
-# Or: cp -r /path/to/trinitycore-docker/docker ./
+# Or: git clone https://github.com/HoffmannThomas/trinitycore-docker.git docker
 
 # 3. Configure
 cp docker/.env.example docker/.env
