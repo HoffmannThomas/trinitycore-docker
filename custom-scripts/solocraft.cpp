@@ -50,6 +50,7 @@ public:
 
     void OnMapChanged(Player* player) override
     {
+        TC_LOG_INFO("scripts", "SoloCraft: OnMapChanged called for player {}", player->GetName());
         bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
         bool announce = sConfigMgr->GetBoolDefault("SoloCraft.Announce", true);
         if (!enable)

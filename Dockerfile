@@ -34,6 +34,15 @@ WORKDIR /src
 # Source (invalidates on change)
 COPY . /src
 
+# Apply custom patches (Solo LFG support)
+COPY docker/patches /patches
+RUN cd /src && for p in /patches/*.patch; do \
+        if [ -f "\$p" ]; then \
+            echo "Applying \$p..."; \
+            git apply "\$p" 2>&1 || echo "Patch \$p failed (may already be applied)"; \
+        fi; \
+    done
+
 # Configure + build + install
 RUN --mount=type=cache,target=/ccache \
     --mount=type=cache,target=/src/build \
