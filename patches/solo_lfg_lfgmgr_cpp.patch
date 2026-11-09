@@ -1,0 +1,24 @@
+diff --git a/src/server/game/DungeonFinding/LFGMgr.cpp b/src/server/game/DungeonFinding/LFGMgr.cpp
+index f1484ae07e..16ce04e75c 100644
+--- a/src/server/game/DungeonFinding/LFGMgr.cpp
++++ b/src/server/game/DungeonFinding/LFGMgr.cpp
+@@ -58,7 +58,7 @@ LFGDungeonData::LFGDungeonData(LFGDungeonsEntry const* dbc) : id(dbc->ID), name(
+ }
+ 
+ LFGMgr::LFGMgr() : m_QueueTimer(0), m_lfgProposalId(1),
+-    m_options(sWorld->getIntConfig(CONFIG_LFG_OPTIONSMASK))
++    m_options(sWorld->getIntConfig(CONFIG_LFG_OPTIONSMASK)), m_isSoloLFG(false)
+ {
+ }
+ 
+@@ -2221,4 +2221,10 @@ LfgDungeonSet LFGMgr::GetRandomAndSeasonalDungeons(uint8 level, uint8 expansion,
+     return randomDungeons;
+ }
+ 
++void LFGMgr::ToggleSoloLFG()
++{
++    m_isSoloLFG = !m_isSoloLFG;
++    TC_LOG_INFO("lfg", "SoloLFG mode: {}", m_isSoloLFG ? "enabled" : "disabled");
++}
++
+ } // namespace lfg

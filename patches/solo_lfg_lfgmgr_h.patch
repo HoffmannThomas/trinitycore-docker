@@ -1,0 +1,23 @@
+diff --git a/src/server/game/DungeonFinding/LFGMgr.h b/src/server/game/DungeonFinding/LFGMgr.h
+index c293bfcf0d..9d9f1dde75 100644
+--- a/src/server/game/DungeonFinding/LFGMgr.h
++++ b/src/server/game/DungeonFinding/LFGMgr.h
+@@ -423,6 +423,10 @@ class TC_GAME_API LFGMgr
+         void UpdateRoleCheck(ObjectGuid gguid, ObjectGuid guid = ObjectGuid::Empty, uint8 roles = PLAYER_ROLE_NONE);
+         /// Sets player lfg roles
+         void SetRoles(ObjectGuid guid, uint8 roles);
++        /// Toggle solo/small-group LFG mode
++        void ToggleSoloLFG();
++        /// Check if solo/small-group LFG mode is enabled
++        bool IsSoloLFG() const { return m_isSoloLFG; }
+         /// Join Lfg with selected roles, dungeons and comment
+         void JoinLfg(Player* player, uint8 roles, LfgDungeonSet& dungeons);
+         /// Leaves lfg
+@@ -491,6 +495,7 @@ class TC_GAME_API LFGMgr
+         uint32 m_QueueTimer;                               /// used to check interval of update
+         uint32 m_lfgProposalId;                            /// used as internal counter for proposals
+         uint32 m_options;                                  /// Stores config options
++        bool m_isSoloLFG;                                  /// solo/small-group lfg mode
+ 
+         LfgQueueContainer QueuesStore;                     /// Queues
+         LfgCachedDungeonContainer CachedDungeonMapStore;   /// Stores all dungeons by groupType

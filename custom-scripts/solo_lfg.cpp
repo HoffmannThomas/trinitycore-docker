@@ -13,6 +13,7 @@
 #include "LFGMgr.h"
 #include "Chat.h"
 #include "Config.h"
+#include "World.h"
 
 static bool SoloLFGEnable = true;
 static bool SoloLFGAllowSoloQueue = true;
@@ -27,9 +28,10 @@ public:
         if (!SoloLFGEnable)
             return;
 
+        bool allowSolo = sConfigMgr->GetBoolDefault("SoloLFG.AllowSoloQueue", true);
         ChatHandler(player->GetSession()).SendSysMessage(
             "SoloLFG: " + std::string(SoloLFGEnable ? "Enabled" : "Disabled") +
-            " | Solo queue: " + std::string(SoloLFGAllowSoloQueue ? "Allowed" : "Disabled"));
+            " | Solo queue: " + std::string(allowSolo ? "Allowed" : "Disabled"));
     }
 
     void OnMapChanged(Player* player) override
@@ -37,7 +39,6 @@ public:
         if (!SoloLFGEnable || !SoloLFGAllowSoloQueue)
             return;
 
-        // Check if player is in a dungeon via LFG
         if (player->GetGroup() && player->GetGroup()->isLFGGroup())
         {
             ChatHandler(player->GetSession()).SendSysMessage(
@@ -67,7 +68,6 @@ public:
         if (!SoloLFGEnable)
             return;
 
-        // Check if this was a solo LFG group
         if (group->isLFGGroup())
         {
             for (GroupReference const& ref : group->GetMembers())
@@ -82,8 +82,29 @@ public:
     }
 };
 
+// WorldScript to toggle SoloLFG mode on config load (like AzerothCore)
+class SoloLFGWorldScript : public WorldScript
+{
+public:
+    SoloLFGWorldScript() : WorldScript("SoloLFGWorldScript") { }
+
+    void OnConfigLoad(bool /*reload*/) override
+    {
+        bool enable = sConfigMgr->GetBoolDefault("SoloLFG.Enable", true);
+        bool allowSolo = sConfigMgr->GetBoolDefault("SoloLFG.AllowSoloQueue", true);
+
+        // Toggle SoloLFG mode if config changed
+        if (enable && allowSolo != sLFGMgr->IsSoloLFG())
+        {
+            sLFGMgr->ToggleSoloLFG();
+            TC_LOG_INFO("scripts", "SoloLFG: mode toggled to {}", sLFGMgr->IsSoloLFG());
+        }
+    }
+};
+
 void AddSC_solo_lfg()
 {
     new SoloLFGPlayerScript();
     new SoloLFGGroupScript();
+    new SoloLFGWorldScript();
 }
