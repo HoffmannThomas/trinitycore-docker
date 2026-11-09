@@ -149,7 +149,7 @@ cp -r dbc maps gt cameras vmaps mmaps /home/trinitycore/tc-data/
 ### 8. Start the stack
 
 ```bash
-cd /home/trinitycore/trinitycore-docker/docker
+cd /home/trinitycore/TrinityCore/docker
 docker compose up -d
 ```
 
