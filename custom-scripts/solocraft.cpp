@@ -72,19 +72,8 @@ private:
         me->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, damageMult);
         me->UpdateAllStats();
 
-        if (SoloCraftAnnounce)
-        {
-            for (auto const& itr : players)
-            {
-                if (itr.GetSource()->IsInWorld())
-                {
-                    ChatHandler(itr.GetSource()->GetSession()).SendSysMessage(
-                        "SoloCraft: Scaled " + me->GetName() + " (HP x" +
-                        std::to_string(healthMult).substr(0, 4) + ", DMG x" +
-                        std::to_string(damageMult).substr(0, 4) + ")");
-                }
-            }
-        }
+        // Per-creature scaling announcement removed to avoid chat spam.
+        // Scaling is still applied silently; dungeon entry/leave messages remain.
     }
 };
 
