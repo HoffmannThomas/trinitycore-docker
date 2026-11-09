@@ -71,8 +71,8 @@ sudo mount -a
 cd /home/trinitycore
 git clone https://github.com/HoffmannThomas/trinitycore-docker.git
 cd trinitycore-docker
-cp .env.example .env
-# Edit .env with your values (SERVER_IP, paths, passwords, etc.)
+cp docker/.env.example docker/.env
+# Edit docker/.env with your values (SERVER_IP, paths, passwords, etc.)
 ```
 
 ### 5. Build the image
