@@ -16,6 +16,8 @@
 #include "World.h"
 #include "Chat.h"
 #include "Map.h"
+#include "ObjectGuid.h"
+#include <map>
 
 // Configuration defaults
 static bool SoloCraftEnable = true;
@@ -25,6 +27,9 @@ static bool SoloCraftAnnounce = true;
 static bool SoloCraftLevelScaling = true;
 static float SoloCraftMinLevelRatio = 0.5f;
 static uint32 SoloCraftMaxLevelDiff = 10;
+
+static std::map<uint32, uint32> originalHealthMap;
+static InstanceMap* lastScaledInstance = nullptr;
 
 class SoloCraftPlayerScript : public PlayerScript
 {
@@ -59,6 +64,14 @@ public:
         InstanceMap* instanceMap = player->GetMap()->ToInstanceMap();
         if (!instanceMap)
             return;
+
+        // If this is the same instance we already scaled, skip
+        if (instanceMap == lastScaledInstance)
+            return;
+
+        // New instance - clear tracking and update pointer
+        originalHealthMap.clear();
+        lastScaledInstance = instanceMap;
 
         // Count players and calculate mean level
         uint32 playerCount = 0;
@@ -131,6 +144,9 @@ public:
         if (!enable || !announce)
             return;
 
+        // Clear tracking for this instance
+        originalHealthMap.clear();
+        lastScaledInstance = nullptr;
         ChatHandler(player->GetSession()).SendSysMessage(
             "SoloCraft: Left dungeon. Scaling deactivated.");
     }
@@ -145,8 +161,22 @@ private:
             if (!creature || !creature->IsInWorld())
                 continue;
 
-            // Store original HP before any modifications
-            uint32 originalHealth = creature->GetMaxHealth();
+            uint32 spawnId = itr.first;
+
+            // Check if we already have the original HP stored for this spawn
+            uint32 originalHealth;
+            auto it = originalHealthMap.find(spawnId);
+            if (it != originalHealthMap.end())
+            {
+                // Already scaled - use stored original HP, but skip re-scaling
+                continue;
+            }
+            else
+            {
+                // First time - store original HP
+                originalHealth = creature->GetMaxHealth();
+                originalHealthMap[spawnId] = originalHealth;
+            }
 
             uint8 creatureLevel = creature->GetLevel();
             float finalHealthMult = healthMult;
@@ -168,18 +198,22 @@ private:
             if (finalHealthMult < 0.05f) finalHealthMult = 0.05f;
             if (finalDamageMult < 0.05f) finalDamageMult = 0.05f;
 
-            // Apply damage scaling via stat modifier first
+            // Apply damage scaling via stat modifiers
             creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
+            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_OFFHAND, TOTAL_PCT, finalDamageMult);
+            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_RANGED, TOTAL_PCT, finalDamageMult);
             creature->UpdateAllStats();
 
             // Apply HP scaling AFTER UpdateAllStats (which recalculates health from base)
-            // Use originalHealth (stored before SetLevel) to avoid double-scaling
             uint32 newHealth = (uint32)(originalHealth * finalHealthMult);
             if (newHealth < 1) newHealth = 1;
             creature->SetMaxHealth(newHealth);
             creature->SetHealth(newHealth);
+
+            // Original HP already stored above
         }
     }
+
 };
 
 void AddSC_solocraft()
