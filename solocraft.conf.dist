@@ -13,5 +13,14 @@ SoloCraft.HealthMultiplier = 5.0
 # 1 player = 3x, 2 players = 1.5x, 5 players = 1x
 SoloCraft.DamageMultiplier = 3.0
 
+# Enable level-based scaling (scale creatures to player level)
+SoloCraft.LevelScaling = 1
+
+# Minimum scale ratio (prevent over-nerfing for large level gaps)
+SoloCraft.MinLevelRatio = 0.5
+
+# Max level difference between players in a group (0 = no limit)
+SoloCraft.MaxLevelDiff = 10
+
 # Announce scaling to players in chat
 SoloCraft.Announce = 1
