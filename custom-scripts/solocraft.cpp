@@ -168,14 +168,16 @@ private:
             if (finalHealthMult < 0.05f) finalHealthMult = 0.05f;
             if (finalDamageMult < 0.05f) finalDamageMult = 0.05f;
 
-            // Apply scaling to ORIGINAL HP (not recalculated HP from SetLevel)
+            // Apply damage scaling via stat modifier first
+            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
+            creature->UpdateAllStats();
+
+            // Apply HP scaling AFTER UpdateAllStats (which recalculates health from base)
+            // Use originalHealth (stored before SetLevel) to avoid double-scaling
             uint32 newHealth = (uint32)(originalHealth * finalHealthMult);
             if (newHealth < 1) newHealth = 1;
             creature->SetMaxHealth(newHealth);
             creature->SetHealth(newHealth);
-
-            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
-            creature->UpdateAllStats();
         }
     }
 };
