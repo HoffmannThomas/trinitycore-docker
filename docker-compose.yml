@@ -73,7 +73,7 @@ services:
       - "1119:1119"
       - "8081:8081"
     healthcheck:
-      test: ["CMD-SHELL", "grep -q 'Added realm' /data/logs/Bnet.log 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f bnetserver >/dev/null && grep -q 'Added realm' /data/logs/Bnet.log 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -111,8 +111,9 @@ services:
     command: ["worldserver"]
     ports:
       - "8085:8085"
+      - "3443:3443"
     healthcheck:
-      test: ["CMD-SHELL", "grep -q 'worldserver-daemon) ready' /data/logs/Server.log 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f '/opt/trinitycore/bin/worldserver' >/dev/null && grep -q 'worldserver-daemon) ready' /data/logs/Server.log 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
