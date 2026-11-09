@@ -52,7 +52,6 @@ services:
         condition: service_healthy
     volumes:
       - ./tc-etc:/opt/trinitycore/etc
-      - tc_data:/data
       - ./entrypoint.sh:/opt/trinitycore/docker/entrypoint.sh:ro
     environment:
       TC_SERVICE: bnetserver
@@ -94,7 +93,7 @@ services:
     image: trinitycore:master
     profiles: ["tools"]
     volumes:
-      - tc_data:/data
+      - ./tc-data:/data
       - /path/to/wow/client:/client:ro
     entrypoint: []
     command: ["/bin/bash", "-c", "cd /client && /opt/trinitycore/bin/mapextractor && mkdir -p vmaps && /opt/trinitycore/bin/vmap4extractor && /opt/trinitycore/bin/vmap4assembler Buildings vmaps && mkdir -p mmaps && /opt/trinitycore/bin/mmaps_generator && cp -r dbc maps gt cameras vmaps mmaps /data 2>/dev/null; echo Done"]
@@ -102,5 +101,4 @@ services:
 
 volumes:
   db_data:
-  tc_data:
   tdb_data:

@@ -89,7 +89,6 @@ docker exec trinitycore-worldserver-1 bash -c 'echo ".account set gmlevel 1#1 3 
 | Volume | Purpose |
 |--------|---------|
 | `db_data` | MySQL data (persistent) |
-| `tc_data` | Map/DBC data (read-write) |
 | `tdb_data` | TDB extraction cache (persistent) |
 | `./tc-etc` | Config files (bind mount, editable) |
 | `./tc-data` | Map data (bind mount, read-write) |
