@@ -91,6 +91,9 @@ fi
 
 mkdir -p "$DATA" /data/logs
 
+# Clear old logs on startup so healthchecks don't pass from stale data
+rm -f /data/logs/Server.log /data/logs/Bnet.log /data/logs/*.log 2>/dev/null || true
+
 # Run the requested server binary
 case "$1" in
     bnetserver)
