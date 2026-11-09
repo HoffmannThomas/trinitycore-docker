@@ -15,7 +15,7 @@
 #include "Config.h"
 #include "World.h"
 #include "Chat.h"
-#include "CreatureAI.h"
+#include "Map.h"
 
 // Configuration defaults
 static bool SoloCraftEnable = true;
@@ -26,30 +26,36 @@ static bool SoloCraftLevelScaling = true;
 static float SoloCraftMinLevelRatio = 0.5f;
 static uint32 SoloCraftMaxLevelDiff = 10;
 
-class SoloCraftAI : public CreatureAI
+class SoloCraftPlayerScript : public PlayerScript
 {
 public:
-    SoloCraftAI(Creature* creature) : CreatureAI(creature) { }
+    SoloCraftPlayerScript() : PlayerScript("SoloCraftPlayerScript") { }
 
-    void UpdateAI(uint32 /*diff*/) override { } // no-op
-
-    void Reset() override
-    {
-        CreatureAI::Reset();
-        ScaleCreature();
-    }
-
-private:
-    void ScaleCreature()
+    void OnLogin(Player* player, bool /*loginFirst*/) override
     {
         bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
         if (!enable)
             return;
 
-        if (!me->GetMap()->IsDungeon())
+        float hpMult = sConfigMgr->GetFloatDefault("SoloCraft.HealthMultiplier", 5.0f);
+        float dmgMult = sConfigMgr->GetFloatDefault("SoloCraft.DamageMultiplier", 3.0f);
+        bool levelScaling = sConfigMgr->GetBoolDefault("SoloCraft.LevelScaling", true);
+
+        ChatHandler(player->GetSession()).SendSysMessage(
+            "SoloCraft: " + std::string(enable ? "Enabled" : "Disabled") +
+            " | HP multiplier: " + std::to_string(hpMult) +
+            " | DMG multiplier: " + std::to_string(dmgMult) +
+            " | Level scaling: " + std::string(levelScaling ? "ON" : "OFF"));
+    }
+
+    void OnMapChanged(Player* player) override
+    {
+        bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
+        bool announce = sConfigMgr->GetBoolDefault("SoloCraft.Announce", true);
+        if (!enable)
             return;
 
-        InstanceMap* instanceMap = me->GetMap()->ToInstanceMap();
+        InstanceMap* instanceMap = player->GetMap()->ToInstanceMap();
         if (!instanceMap)
             return;
 
@@ -74,124 +80,50 @@ private:
         if (playerCount == 0 || playerCount > 5)
             return;
 
-        // Check level spread (optional)
+        // Check level spread
         uint32 maxDiff = sConfigMgr->GetIntDefault("SoloCraft.MaxLevelDiff", 10);
         if (maxDiff > 0 && (maxLevel - minLevel) > maxDiff)
         {
-            // Level spread too wide - skip scaling to avoid trivializing content
             TC_LOG_INFO("scripts", "SoloCraft: Level spread too wide ({}-{}), skipping scaling", minLevel, maxLevel);
+            if (announce)
+                ChatHandler(player->GetSession()).SendSysMessage(
+                    "SoloCraft: Level spread too wide (" + std::to_string(minLevel) + "-" + std::to_string(maxLevel) + "). Scaling skipped.");
             return;
         }
 
         float meanLevel = (float)totalLevel / (float)playerCount;
-        uint8 creatureLevel = me->GetLevel();
-
-        // Party-size multipliers
         float hpMultCfg = sConfigMgr->GetFloatDefault("SoloCraft.HealthMultiplier", 5.0f);
         float dmgMultCfg = sConfigMgr->GetFloatDefault("SoloCraft.DamageMultiplier", 3.0f);
-        float healthMult = hpMultCfg / (float)playerCount;
-        float damageMult = dmgMultCfg / (float)playerCount;
-
-        // Level-based scaling
         bool levelScaling = sConfigMgr->GetBoolDefault("SoloCraft.LevelScaling", true);
         float minLevelRatio = sConfigMgr->GetFloatDefault("SoloCraft.MinLevelRatio", 0.5f);
 
-        if (levelScaling && meanLevel > 0 && creatureLevel > 0 && meanLevel < creatureLevel)
-        {
-            float levelRatio = meanLevel / (float)creatureLevel;
-            if (levelRatio < minLevelRatio)
-                levelRatio = minLevelRatio;
-
-            healthMult *= levelRatio;
-            damageMult *= levelRatio;
-
-            // Scale creature level to match player
-            me->SetLevel((uint8)meanLevel);
-        }
-
-        if (healthMult < 1.0f) healthMult = 1.0f;
-        if (damageMult < 1.0f) damageMult = 1.0f;
-
-        uint32 newHealth = (uint32)(me->GetMaxHealth() * healthMult);
-        me->SetMaxHealth(newHealth);
-        me->SetHealth(newHealth);
-
-        me->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, damageMult);
-        me->UpdateAllStats();
-
-        // Announce on dungeon entry (handled by InstanceScript)
-    }
-};
-
-class SoloCraftInstanceScript : public InstanceMapScript
-{
-public:
-    SoloCraftInstanceScript() : InstanceMapScript("SoloCraftInstanceScript", 0) { }
-
-    void OnPlayerEnter(InstanceMap* /*map*/, Player* player) override
-    {
-        bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
-        bool announce = sConfigMgr->GetBoolDefault("SoloCraft.Announce", true);
-        if (!enable || !announce)
-            return;
-
-        InstanceMap* instanceMap = player->GetMap()->ToInstanceMap();
-        if (!instanceMap)
-            return;
-
-        uint32 playerCount = 0;
-        uint32 totalLevel = 0;
-        uint8 minLevel = 255;
-        uint8 maxLevel = 0;
-        Map::PlayerList const& players = instanceMap->GetPlayers();
-        for (auto const& itr : players)
-        {
-            if (itr.GetSource()->IsInWorld())
-            {
-                ++playerCount;
-                uint8 lvl = itr.GetSource()->GetLevel();
-                totalLevel += lvl;
-                if (lvl < minLevel) minLevel = lvl;
-                if (lvl > maxLevel) maxLevel = lvl;
-            }
-        }
-
-        if (playerCount == 0)
-            return;
-
-        float meanLevel = (float)totalLevel / (float)playerCount;
-        float hpMultCfg = sConfigMgr->GetFloatDefault("SoloCraft.HealthMultiplier", 5.0f);
-        float dmgMultCfg = sConfigMgr->GetFloatDefault("SoloCraft.DamageMultiplier", 3.0f);
-        bool levelScaling = sConfigMgr->GetBoolDefault("SoloCraft.LevelScaling", true);
-
         float healthMult = hpMultCfg / (float)playerCount;
         float damageMult = dmgMultCfg / (float)playerCount;
 
-        if (levelScaling)
-        {
-            healthMult *= (meanLevel / 50.0f); // approximate level ratio
-            damageMult *= (meanLevel / 50.0f);
-        }
-
-        if (healthMult < 1.0f) healthMult = 1.0f;
-        if (damageMult < 1.0f) damageMult = 1.0f;
-
-        std::string msg = "SoloCraft: Dungeon scaling active. Group size: " + std::to_string(playerCount) +
+        std::string scalingInfo = "SoloCraft: Dungeon scaling active. Group size: " + std::to_string(playerCount) +
             " | Levels: " + std::to_string(minLevel) + "-" + std::to_string(maxLevel) +
             " (avg " + std::to_string((int)meanLevel) + ")" +
             " | Config: HP x" + std::to_string(hpMultCfg) +
             ", DMG x" + std::to_string(dmgMultCfg);
 
         if (levelScaling)
-            msg += " | Level scaling: ON";
+        {
+            // Scale based on creature level vs mean player level
+            // Applied per-creature in CreatureAI, but we announce here
+            scalingInfo += " | Level scaling: ON (min ratio " + std::to_string(minLevelRatio) + ")";
+        }
 
-        msg += " | Final: HP x" + std::to_string(healthMult).substr(0, 4) +
-               ", DMG x" + std::to_string(damageMult).substr(0, 4);
+        scalingInfo += " | Final: HP x" + std::to_string(healthMult).substr(0, 4) +
+                       ", DMG x" + std::to_string(damageMult).substr(0, 4);
 
-        ChatHandler(player->GetSession()).SendSysMessage(msg);
+        if (announce)
+            ChatHandler(player->GetSession()).SendSysMessage(scalingInfo);
+
+        // Scale all creatures in the instance
+        ScaleInstanceCreatures(instanceMap, playerCount, meanLevel, healthMult, damageMult, levelScaling, minLevelRatio);
     }
 
-    void OnPlayerLeave(InstanceMap* /*map*/, Player* player) override
+    void OnPlayerLeave(InstanceMap* /*map*/, Player* player)
     {
         bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
         bool announce = sConfigMgr->GetBoolDefault("SoloCraft.Announce", true);
@@ -201,45 +133,47 @@ public:
         ChatHandler(player->GetSession()).SendSysMessage(
             "SoloCraft: Left dungeon. Scaling deactivated.");
     }
-};
 
-class SoloCraftPlayerScript : public PlayerScript
-{
-public:
-    SoloCraftPlayerScript() : PlayerScript("SoloCraftPlayerScript") { }
-
-    void OnLogin(Player* player, bool /*loginFirst*/) override
+private:
+    void ScaleInstanceCreatures(InstanceMap* instanceMap, uint32 playerCount, float meanLevel,
+                                 float healthMult, float damageMult, bool levelScaling, float minLevelRatio)
     {
-        bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
-        if (!enable)
-            return;
+        for (auto const& itr : instanceMap->GetCreatureBySpawnIdStore())
+        {
+            Creature* creature = itr.second;
+            if (!creature || !creature->IsInWorld())
+                continue;
 
-        float hpMult = sConfigMgr->GetFloatDefault("SoloCraft.HealthMultiplier", 5.0f);
-        float dmgMult = sConfigMgr->GetFloatDefault("SoloCraft.DamageMultiplier", 3.0f);
-        bool levelScaling = sConfigMgr->GetBoolDefault("SoloCraft.LevelScaling", true);
+            uint8 creatureLevel = creature->GetLevel();
+            float finalHealthMult = healthMult;
+            float finalDamageMult = damageMult;
 
-        ChatHandler(player->GetSession()).SendSysMessage(
-            "SoloCraft: " + std::string(enable ? "Enabled" : "Disabled") +
-            " | HP multiplier: " + std::to_string(hpMult) +
-            " | DMG multiplier: " + std::to_string(dmgMult) +
-            " | Level scaling: " + std::string(levelScaling ? "ON" : "OFF"));
-    }
-};
+            if (levelScaling && meanLevel > 0 && creatureLevel > 0 && meanLevel < creatureLevel)
+            {
+                float levelRatio = meanLevel / (float)creatureLevel;
+                if (levelRatio < minLevelRatio)
+                    levelRatio = minLevelRatio;
 
-class SoloCraftCreatureScript : public CreatureScript
-{
-public:
-    SoloCraftCreatureScript() : CreatureScript("SoloCraftCreatureScript") { }
+                finalHealthMult *= levelRatio;
+                finalDamageMult *= levelRatio;
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new SoloCraftAI(creature);
+                creature->SetLevel((uint8)meanLevel);
+            }
+
+            if (finalHealthMult < 1.0f) finalHealthMult = 1.0f;
+            if (finalDamageMult < 1.0f) finalDamageMult = 1.0f;
+
+            uint32 newHealth = (uint32)(creature->GetMaxHealth() * finalHealthMult);
+            creature->SetMaxHealth(newHealth);
+            creature->SetHealth(newHealth);
+
+            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
+            creature->UpdateAllStats();
+        }
     }
 };
 
 void AddSC_solocraft()
 {
-    new SoloCraftCreatureScript();
-    new SoloCraftInstanceScript();
     new SoloCraftPlayerScript();
 }
