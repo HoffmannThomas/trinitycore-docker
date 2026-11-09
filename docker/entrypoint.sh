@@ -50,11 +50,14 @@ esac
 # Start server in background with stdin from a named pipe (allows docker exec commands)
 # Tail its log to stdout for Docker log capture
 if [ -n "$LOGFILE" ]; then
+    # Create a named pipe for console commands
     PIPE="/tmp/worldserver.cmd"
     rm -f "$PIPE"
     mkfifo "$PIPE"
+    # Start server reading from pipe (blocks until input, but we feed it)
     "$BIN/$1" < "$PIPE" &
     SERVER_PID=$!
+    # Feed empty input to keep it running, then keep pipe open
     (while true; do sleep 1; done) > "$PIPE" &
     PIPE_WRITER=$!
     for i in $(seq 1 60); do
