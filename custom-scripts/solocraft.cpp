@@ -157,3 +157,4 @@ void AddSC_solocraft()
     new SoloCraftCreatureScript();
     new SoloCraftInstanceScript();
     new SoloCraftPlayerScript();
+}

@@ -44,6 +44,19 @@ if [ ! -f "$MARKER" ]; then
         sed -i "s#^[[:space:]]*CharacterDatabaseInfo[[:space:]]*=.*#CharacterDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_CHAR}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
         sed -i "s#^[[:space:]]*HotfixDatabaseInfo[[:space:]]*=.*#HotfixDatabaseInfo = \"${DB_HOST};${DB_PORT};${DB_USER};${DB_PASS};${DB_NAME_HOTFIX}\"#" "$ETC/worldserver.conf" 2>/dev/null || true
         sed -i 's#^[[:space:]]*LogsDir[[:space:]]*=.*#LogsDir = "/data/logs"#' "$ETC/worldserver.conf" 2>/dev/null || true
+        # Solo scripts configuration (added by TrinityCore Docker stack)
+        if ! grep -q "SoloCraft.Enable" "$ETC/worldserver.conf" 2>/dev/null; then
+            cat >> "$ETC/worldserver.conf" << 'SOLEOF'
+
+# Solo Scripts (TrinityCore Docker)
+SoloCraft.Enable = 1
+SoloCraft.HealthMultiplier = 5.0
+SoloCraft.DamageMultiplier = 3.0
+SoloCraft.Announce = 1
+SoloLFG.Enable = 1
+SoloLFG.AllowSoloQueue = 1
+SOLEOF
+        fi
     fi
     touch "$MARKER"
     echo "Initial Docker configuration applied. Edit .conf files freely; changes persist across restarts."
