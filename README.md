@@ -268,8 +268,11 @@ For WoW 12.x, the client connects to port 1119 (bnetserver) for authentication.
 3. Run it from the WoW folder
 4. Log in with your server credentials
 
-> **Note**: Burralis supports Mainline clients up to 12.0.5. If your client is newer,
-> check for an updated Burralis version.
+> **Note**: Burralis supports all Midnight (12.x) client releases. It does NOT support
+> The Last Titan (13.x) or Forever (1.60) clients.
+> The Burralis project may be handed over to the TrinityCore Team in the future,
+> which could bring official support and updates. Check https://burralis.io for the
+> latest compatibility information.
 
 ### 4. Create Your Account
 
