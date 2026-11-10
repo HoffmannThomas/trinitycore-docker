@@ -46,7 +46,7 @@ First start downloads TDB and auto-populates databases (~5-10 minutes).
 - **WoW client**: 12.1.5.70783 (for map extraction)
 - **SSH access** to the server
 
-See the [Prerequisites](#prerequisites) section above for detailed setup including CIFS mount, user creation, and map extraction.
+See [docs/setup.md](docs/setup.md) for detailed setup including CIFS mount, user creation, and map extraction.
 
 ## Configuration
 
