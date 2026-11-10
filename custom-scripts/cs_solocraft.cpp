@@ -15,8 +15,11 @@
 #include "Creature.h"
 #include "Config.h"
 #include "RBAC.h"
+#include <map>
 
 using namespace Trinity::ChatCommands;
+
+static std::map<uint32, uint32> soloScaleOriginalHealth;
 
 class solocraft_commandscript : public CommandScript
 {
@@ -84,9 +87,19 @@ public:
         {
             Creature* creature = itr.second;
             if (!creature || !creature->IsInWorld()) continue;
-            TC_LOG_INFO("scripts", "SoloCraft: creature level=%u ct=%u scalable=%d", (uint32)creature->GetLevel(), (uint32)creature->GetContentTuning(), creature->HasScalableLevels());
 
-            uint32 originalHealth = creature->GetMaxHealth();
+            uint32 spawnId = itr.first;
+            // Use stored original HP if available (prevents compounding)
+            uint32 originalHealth;
+            auto it = soloScaleOriginalHealth.find(spawnId);
+            if (it != soloScaleOriginalHealth.end())
+                originalHealth = it->second;
+            else
+            {
+                originalHealth = creature->GetMaxHealth();
+                soloScaleOriginalHealth[spawnId] = originalHealth;
+            }
+
             uint8 creatureLevel = creature->GetLevel();
             float finalHealthMult = healthMult;
             float finalDamageMult = damageMult;
@@ -97,16 +110,13 @@ public:
                 if (levelRatio < minLevelRatio) levelRatio = minLevelRatio;
                 finalHealthMult *= levelRatio;
                 finalDamageMult *= levelRatio;
-                TC_LOG_INFO("scripts", "SoloCraft: before SetLevel: GetLevel={} ContentTuningID={}", (int)creature->GetLevel(), (int)creature->m_unitData->ContentTuningID);
                 creature->SetLevel((uint8)meanLevel);
-                TC_LOG_INFO("scripts", "SoloCraft: after SetLevel: GetLevel={}", (int)creature->GetLevel());
             }
 
             if (finalHealthMult < 0.1f) finalHealthMult = 0.1f;
             if (finalDamageMult < 0.1f) finalDamageMult = 0.1f;
 
-            creature->ApplyLevelScaling(0, 0);
-            TC_LOG_INFO("scripts", "SoloCraft: after ApplyLevelScaling(0,0): GetLevel={} ContentTuningID={} Scalable={}", (int)creature->GetLevel(), (int)creature->m_unitData->ContentTuningID, creature->HasScalableLevels());
+            creature->ClearContentTuning();
 
             creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
             creature->SetStatPctModifier(UNIT_MOD_DAMAGE_OFFHAND, TOTAL_PCT, finalDamageMult);

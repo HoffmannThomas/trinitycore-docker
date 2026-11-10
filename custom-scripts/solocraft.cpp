@@ -16,6 +16,8 @@
 #include "World.h"
 #include "Chat.h"
 #include "Map.h"
+#include "Formulas.h"
+#include "Formulas.h"
 #include "ObjectGuid.h"
 #include <map>
 
@@ -57,6 +59,7 @@ public:
 
     void OnMapChanged(Player* player) override
     {
+        TC_LOG_INFO("scripts", "SoloCraft: OnMapChanged for {} on map {}", player->GetName(), player->GetMapId());
         bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
         bool announce = sConfigMgr->GetBoolDefault("SoloCraft.Announce", true);
         if (!enable)
@@ -68,7 +71,12 @@ public:
 
         // If this is the same instance we already scaled, skip (unless forced)
         if (instanceMap == lastScaledInstance && !forceRescale)
+        {
+            bool announce = sConfigMgr->GetBoolDefault("SoloCraft.Announce", true);
+            if (announce)
+                ChatHandler(player->GetSession()).SendSysMessage("SoloCraft: Re-entered scaled instance. Scaling preserved.");
             return;
+        }
 
         // New instance - clear tracking and update pointer
         originalHealthMap.clear();
@@ -213,7 +221,7 @@ public:
             if (finalHealthMult < 0.1f) finalHealthMult = 0.1f;
             if (finalDamageMult < 0.1f) finalDamageMult = 0.1f;
 
-            creature->ApplyLevelScaling(0, 0);
+            creature->ClearContentTuning();
 
             creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
             creature->SetStatPctModifier(UNIT_MOD_DAMAGE_OFFHAND, TOTAL_PCT, finalDamageMult);
@@ -231,14 +239,14 @@ public:
 
     void OnGiveXP(Player* player, uint32& amount, Unit* victim) override
     {
-        // Prevent XP catapult from content-tuned creatures
-        if (victim && victim->GetTypeId() == TYPEID_UNIT)
+        // Recalculate XP based on player level to prevent catapult from content-tuned creatures
+        if (victim && victim->GetTypeId() == TYPEID_UNIT && player->GetMap()->ToInstanceMap())
         {
             bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
-            if (enable && player->GetMap()->ToInstanceMap())
+            if (enable)
             {
-                // Set XP to 0 for scaled creatures
-                amount = 0;
+                // Use player level for both params to get normal XP
+                amount = Trinity::XP::BaseGain(player->GetLevel(), player->GetLevel());
             }
         }
     }
@@ -305,7 +313,7 @@ private:
             if (finalDamageMult < 0.05f) finalDamageMult = 0.05f;
 
             // Disable content tuning (removes the massive level-based multiplier)
-            creature->ApplyLevelScaling(0, 0);
+            creature->ClearContentTuning();
 
             // Apply damage scaling via stat modifiers
             creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
