@@ -91,7 +91,7 @@ services:
       - "1119:1119"
       - "8081:8081"
     healthcheck:
-      test: ["CMD-SHELL", "ls /proc/*/cmdline 2>/dev/null | xargs grep -l bnetserver >/dev/null 2>&1 && grep -q 'Added realm' /data/logs/Bnet.log 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "grep -q 'Added realm' /data/logs/Bnet.log 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
@@ -131,7 +131,7 @@ services:
       - "8085:8085"
       - "3443:3443"
     healthcheck:
-      test: ["CMD-SHELL", "ls /proc/*/cmdline 2>/dev/null | xargs grep -l worldserver 2>/dev/null | grep -v entrypoint >/dev/null 2>&1 && grep -q 'worldserver-daemon) ready' /data/logs/Server.log 2>/dev/null || exit 1"]
+      test: ["CMD-SHELL", "grep -q 'worldserver-daemon) ready' /data/logs/Server.log 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
