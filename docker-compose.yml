@@ -13,7 +13,7 @@ services:
       --innodb-buffer-pool-instances=4
       --innodb-read-io-threads=8
       --innodb-write-io-threads=8
-      --innodb-log-file-size=256M
+      --innodb-redo-log-capacity=536870912
       --innodb-flush-log-at-trx-commit=2
       --innodb-flush-method=O_DIRECT
       --max-connections=200

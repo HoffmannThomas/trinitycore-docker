@@ -37,6 +37,9 @@ Internal notes for AI agents working on this TrinityCore Docker stack.
 - `OnGiveXP` hook can prevent XP catapult from scaled creatures
 
 ### Level Display Issue
+- Current approach: `sql/solocraft/01_instance_content_tuning.sql` zeroes `ContentTuningID` and `LevelScalingDeltaMin/Max` in `creature_template_difficulty` for templates that only spawn in `instance_template` maps. Shared entries (also spawning in the open world) are excluded.
+- Verified on the server: 0 remaining instance-only rows after applying. In-game client display was not yet confirmed at the time of writing.
+- Templates are per entry, not per spawn, so shared entries cannot be fixed by SQL without changing open-world behavior.
 - `SetLevel()` changes `m_unitData->Level` (server-side)
 - Client displays level from content tuning fields, not from Level
 - `SetUpdateFieldValue` is protected (can't call from scripts)

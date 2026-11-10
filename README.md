@@ -93,6 +93,18 @@ SoloCraft.MinLevelRatio = 0.5       # Minimum level ratio (prevents 0 HP)
 SoloCraft.MaxLevelDiff = 10         # Skip scaling if level spread > 10
 ```
 
+**Required one-time SQL patch** (`sql/solocraft/01_instance_content_tuning.sql`):
+
+Disables WoW 12.x content tuning on creature templates that only spawn inside instance maps. Without it, the client shows the content-tuned level and applies level-gap penalties even when the server uses the scaled level. The patch is idempotent. Run it from the directory that contains `docker-compose.yml`, replacing `YOUR_ROOT_PASSWORD` with the value of `MYSQL_ROOT_PASSWORD` from `.env`:
+
+```bash
+docker compose exec -T db mysql -uroot -pYOUR_ROOT_PASSWORD world < sql/solocraft/01_instance_content_tuning.sql
+docker compose restart worldserver
+```
+
+- Templates that also spawn outside instances (shared entries, about 148 at the time of writing) are intentionally skipped so open-world behavior does not change. Those creatures keep content tuning inside instances.
+- Restoring the original values requires re-importing the TDB.
+
 **GM Command:**
 ```
 .solocraft scale [level]   # Scale all creatures in current instance
@@ -128,7 +140,8 @@ SoloLFG.AllowSoloQueue = 1
 ```
 
 ### Core Patches
-Three patch files are included in `patches/`:
+Four patch files are included in `patches/`. None of them are applied by the Dockerfile; apply them manually in the TrinityCore source tree before building:
+- `solocraft_command_loader.patch` - registers the `.solocraft` commands (`cs_solocraft.cpp`) in `cs_script_loader.cpp`. Copy `docker/custom-scripts/cs_solocraft.cpp` to `src/server/scripts/Commands/` first.
 - `solo_lfg_lfgmgr_cpp.patch` — LFGMgr constructor and toggle changes
 - `solo_lfg_lfgmgr_h.patch` — LFGMgr header (ToggleSoloLFG, IsSoloLFG)
 - `solo_lfg_lfgqueue_cpp.patch` — LFGQueue compatibility check changes
@@ -228,7 +241,7 @@ docker compose logs --tail=3 bnetserver
 # Look for: "Added realm \"Trinity\" at ..."
 
 # Verify database connectivity
-docker compose exec db mysql -uroot -ptrinity -e "SELECT 1" 2>&1 | grep -v Warning
+docker compose exec -T db mysql -uroot -pYOUR_ROOT_PASSWORD -e "SELECT 1" 2>&1 | grep -v Warning
 ```
 
 **Signs of trouble:**

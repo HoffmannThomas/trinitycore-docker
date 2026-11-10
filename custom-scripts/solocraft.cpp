@@ -30,6 +30,7 @@ static uint32 SoloCraftMaxLevelDiff = 10;
 
 static std::map<uint32, uint32> originalHealthMap;
 static InstanceMap* lastScaledInstance = nullptr;
+static bool forceRescale = false;
 
 class SoloCraftPlayerScript : public PlayerScript
 {
@@ -65,8 +66,8 @@ public:
         if (!instanceMap)
             return;
 
-        // If this is the same instance we already scaled, skip
-        if (instanceMap == lastScaledInstance)
+        // If this is the same instance we already scaled, skip (unless forced)
+        if (instanceMap == lastScaledInstance && !forceRescale)
             return;
 
         // New instance - clear tracking and update pointer
@@ -135,6 +136,111 @@ public:
 
         // Scale all creatures in the instance
         ScaleInstanceCreatures(instanceMap, playerCount, meanLevel, healthMult, damageMult, levelScaling, minLevelRatio);
+    }
+
+    void OnLevelChanged(Player* player, uint8 /*oldLevel*/) override
+    {
+        bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
+        if (!enable)
+            return;
+
+        InstanceMap* instanceMap = player->GetMap()->ToInstanceMap();
+        if (!instanceMap)
+            return;
+
+        // Force re-scale on level change
+        forceRescale = true;
+        // Re-trigger scaling by calling OnMapChanged logic
+        // (We can't call OnMapChanged directly, so we'll handle it here)
+
+        // Count players
+        uint32 playerCount = 0;
+        uint32 totalLevel = 0;
+        uint8 minLevel = 255, maxLevel = 0;
+        for (auto const& itr : instanceMap->GetPlayers())
+        {
+            if (itr.GetSource()->IsInWorld())
+            {
+                ++playerCount;
+                uint8 lvl = itr.GetSource()->GetLevel();
+                totalLevel += lvl;
+                if (lvl < minLevel) minLevel = lvl;
+                if (lvl > maxLevel) maxLevel = lvl;
+            }
+        }
+        if (playerCount == 0) playerCount = 1;
+
+        float meanLevel = (float)totalLevel / (float)playerCount;
+        float hpMultCfg = sConfigMgr->GetFloatDefault("SoloCraft.HealthMultiplier", 5.0f);
+        float dmgMultCfg = sConfigMgr->GetFloatDefault("SoloCraft.DamageMultiplier", 3.0f);
+        bool levelScaling = sConfigMgr->GetBoolDefault("SoloCraft.LevelScaling", true);
+        float minLevelRatio = sConfigMgr->GetFloatDefault("SoloCraft.MinLevelRatio", 0.5f);
+
+        float healthMult = (float)playerCount / hpMultCfg;
+        float damageMult = (float)playerCount / dmgMultCfg;
+
+        // Scale all creatures
+        for (auto const& itr : instanceMap->GetCreatureBySpawnIdStore())
+        {
+            Creature* creature = itr.second;
+            if (!creature || !creature->IsInWorld())
+                continue;
+
+            uint32 spawnId = itr.first;
+            uint32 originalHealth;
+            auto it = originalHealthMap.find(spawnId);
+            if (it != originalHealthMap.end())
+                originalHealth = it->second;
+            else
+            {
+                originalHealth = creature->GetMaxHealth();
+                originalHealthMap[spawnId] = originalHealth;
+            }
+
+            uint8 creatureLevel = creature->GetLevel();
+            float finalHealthMult = healthMult;
+            float finalDamageMult = damageMult;
+
+            if (levelScaling && meanLevel > 0 && creatureLevel > 0 && meanLevel < creatureLevel)
+            {
+                float levelRatio = meanLevel / (float)creatureLevel;
+                if (levelRatio < minLevelRatio) levelRatio = minLevelRatio;
+                finalHealthMult *= levelRatio;
+                finalDamageMult *= levelRatio;
+                creature->SetLevel((uint8)meanLevel);
+            }
+
+            if (finalHealthMult < 0.1f) finalHealthMult = 0.1f;
+            if (finalDamageMult < 0.1f) finalDamageMult = 0.1f;
+
+            creature->ApplyLevelScaling(0, 0);
+
+            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, finalDamageMult);
+            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_OFFHAND, TOTAL_PCT, finalDamageMult);
+            creature->SetStatPctModifier(UNIT_MOD_DAMAGE_RANGED, TOTAL_PCT, finalDamageMult);
+            creature->UpdateAllStats();
+
+            uint32 newHealth = (uint32)(originalHealth * finalHealthMult);
+            if (newHealth < 1) newHealth = 1;
+            creature->SetMaxHealth(newHealth);
+            creature->SetHealth(newHealth);
+        }
+
+        forceRescale = false;
+    }
+
+    void OnGiveXP(Player* player, uint32& amount, Unit* victim) override
+    {
+        // Prevent XP catapult from content-tuned creatures
+        if (victim && victim->GetTypeId() == TYPEID_UNIT)
+        {
+            bool enable = sConfigMgr->GetBoolDefault("SoloCraft.Enable", true);
+            if (enable && player->GetMap()->ToInstanceMap())
+            {
+                // Set XP to 0 for scaled creatures
+                amount = 0;
+            }
+        }
     }
 
     void OnPlayerLeave(InstanceMap* /*map*/, Player* player)

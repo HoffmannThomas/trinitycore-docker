@@ -114,12 +114,28 @@ First start downloads TDB (master) and auto-populates databases (~5-10 minutes).
 
 ## 9. Create admin account
 
+Run these from the directory that contains `docker-compose.yml`. They write to the worldserver's command pipe (`/tmp/worldserver.cmd`), which the entrypoint creates at startup. Replace the placeholders with your own values. Output appears in the worldserver log (`docker compose logs --tail=20 worldserver`).
+
 ```bash
-# Send command to worldserver console
-docker exec trinitycore-worldserver-1 bash -c 'echo ".bnetaccount create admin@admin password" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
-# Set GM level
-docker exec trinitycore-worldserver-1 bash -c 'echo ".account set gmlevel 1#1 3 -1" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
+# Create a Battle.net account (replace email and password)
+docker compose exec -T worldserver sh -c 'printf ".bnetaccount create YOUR_EMAIL YOUR_PASSWORD\n" > /tmp/worldserver.cmd'
+
+# Grant GM level 3 to the game account (adjust the account name if yours differs)
+docker compose exec -T worldserver sh -c 'printf ".account set gmlevel 1#1 3 -1\n" > /tmp/worldserver.cmd'
 ```
+
+These commands were tested against the running stack (`.server info` returned output through the pipe). The account commands themselves have not been re-run during this documentation update.
+
+## 10. Apply the SoloCraft SQL patch (one-time)
+
+Run the idempotent patch against the world database. It disables content tuning on instance-only creature templates. Replace `YOUR_ROOT_PASSWORD` with `MYSQL_ROOT_PASSWORD` from `.env`:
+
+```bash
+docker compose exec -T db mysql -uroot -pYOUR_ROOT_PASSWORD world < sql/solocraft/01_instance_content_tuning.sql
+docker compose restart worldserver
+```
+
+Restart `bnetserver` after `worldserver` restarts, so the realm is registered again.
 
 ## Troubleshooting
 
