@@ -46,7 +46,7 @@ First start downloads TDB and auto-populates databases (~5-10 minutes).
 - **WoW client**: 12.1.5.70783 (for map extraction)
 - **SSH access** to the server
 
-See the [Server Setup](#server-setup) section below for detailed setup including CIFS mount, user creation, and map extraction.
+See the [Prerequisites](#prerequisites) and [Quick Start](#quick-start) sections below for detailed setup including CIFS mount, user creation, and map extraction.
 
 ## Configuration
 
@@ -76,16 +76,17 @@ See the [Server Setup](#server-setup) section below for detailed setup including
 Scales creature health and damage for solo/small-group play in dungeons.
 
 **How it works:**
-- Party size scaling: `healthMult = playerCount / HealthMultiplier`
-- Level scaling: adjusts creature level to match player level
-- Content tuning is disabled (removes massive level-based HP multipliers)
-- HP and damage are scaled independently
+- **Party size scaling**: `healthMult = playerCount / HealthMultiplier` (solo = 1/5.0 = 0.2x)
+- **Level scaling**: adjusts creature level to match player level (reduces level-gap penalties)
+- **Content tuning disabled**: removes the massive level-based HP/damage multipliers
+- **HP and damage scaled independently**: HealthMultiplier and DamageMultiplier are separate
+- **No compounding**: Re-entering the same instance doesn't re-scale (tracked by spawn ID)
 
 **Configuration** (`solocraft.conf`):
 ```ini
 SoloCraft.Enable = 1
-SoloCraft.HealthMultiplier = 5.0    # 1 player = 5x, 5 players = 1x
-SoloCraft.DamageMultiplier = 3.0   # 1 player = 3x, 5 players = 1x
+SoloCraft.HealthMultiplier = 5.0    # Solo: 1/5 = 0.2x HP (5-player equivalent)
+SoloCraft.DamageMultiplier = 3.0   # Solo: 1/3 = 0.33x damage (3-player equivalent)
 SoloCraft.Announce = 1
 SoloCraft.LevelScaling = 1
 SoloCraft.MinLevelRatio = 0.5       # Minimum level ratio (prevents 0 HP)
