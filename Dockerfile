@@ -34,12 +34,12 @@ WORKDIR /src
 # Source (invalidates on change)
 COPY . /src
 
-# Apply custom patches (Solo LFG support)
+# Apply custom patches from docker/patches/
 COPY docker/patches /patches
 RUN cd /src && for p in /patches/*.patch; do \
-        if [ -f "\$p" ]; then \
-            echo "Applying \$p..."; \
-            git apply "\$p" 2>&1 || echo "Patch \$p failed (may already be applied)"; \
+        if [ -f "$p" ]; then \
+            echo "Applying $p..."; \
+            git apply "$p" 2>&1 || echo "Patch $p failed (may already be applied)"; \
         fi; \
     done
 

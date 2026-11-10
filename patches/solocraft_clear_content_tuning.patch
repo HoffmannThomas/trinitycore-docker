@@ -1,0 +1,30 @@
+diff --git a/src/server/game/Entities/Creature/Creature.h b/src/server/game/Entities/Creature/Creature.h
+--- a/src/server/game/Entities/Creature/Creature.h
++++ b/src/server/game/Entities/Creature/Creature.h
+@@ -208,6 +208,7 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
+         bool HasScalableLevels() const;
+         void ApplyLevelScaling();
+         void ApplyLevelScaling(int32 contentTuningId, int32 scalingLevelDelta);
++        void ClearContentTuning();
+         uint8 GetLevelForTarget(WorldObject const* target) const override;
+ 
+         uint64 GetMaxHealthByLevel(uint8 level) const;
+ 
+diff --git a/src/server/game/Entities/Creature/Creature.cpp b/src/server/game/Entities/Creature/Creature.cpp
+--- a/src/server/game/Entities/Creature/Creature.cpp
++++ b/src/server/game/Entities/Creature/Creature.cpp
+@@ -3118,6 +3118,14 @@ void Creature::ApplyLevelScaling(int32 contentTuningId, int32 scalingLevelDelta)
+     SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ContentTuningID), contentTuningId);
+ }
+ 
++void Creature::ClearContentTuning()
++{
++    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ScalingLevelMin), 0);
++    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ScalingLevelMax), 0);
++    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ScalingLevelDelta), 0);
++    SetUpdateFieldValue(m_values.ModifyValue(&Unit::m_unitData).ModifyValue(&UF::UnitData::ContentTuningID), 0);
++}
++
+ uint64 Creature::GetMaxHealthByLevel(uint8 level) const
+ {
+     CreatureTemplate const* cInfo = GetCreatureTemplate();
