@@ -106,7 +106,20 @@ SoloCraft.MaxLevelDiff = 10         # Skip scaling if level spread > 10
 - Level changes trigger re-scaling
 
 ### SoloLFG
-Enables solo dungeon finder notifications and core patches for solo LFG.
+Provides notifications and logging for solo/small-group LFG. The core LFG system changes are in patch files (see below).
+
+**Configuration flow:**
+- Template: `solo_lfg.conf.dist` (in `docker/`, copied to image as `/opt/trinitycore/docker/solo_lfg.conf.dist`)
+- On first container start, the entrypoint copies the template to `/opt/trinitycore/etc/worldserver.conf.d/solo_lfg.conf`
+- The generated config persists across restarts (entrypoint uses a `.docker-configured` marker)
+- Users should edit `/home/trinitycore/tc-etc/worldserver.conf.d/solo_lfg.conf` on the host (bind-mounted)
+- Changes take effect on next `worldserver` restart
+
+**Settings also written to `worldserver.conf` by entrypoint (first run only):**
+```ini
+SoloLFG.Enable = 1
+SoloLFG.AllowSoloQueue = 1
+```
 
 **Configuration** (`solo_lfg.conf`):
 ```ini
@@ -115,9 +128,12 @@ SoloLFG.AllowSoloQueue = 1
 ```
 
 ### Core Patches
-Minimal patches in `patches/` are applied during Docker build:
-- `lfg_solo_queue.patch` — Allow solo LFG queueing
-- `lfg_solo_group.patch` — Solo group creation support
+Three patch files are included in `patches/`:
+- `solo_lfg_lfgmgr_cpp.patch` — LFGMgr constructor and toggle changes
+- `solo_lfg_lfgmgr_h.patch` — LFGMgr header (ToggleSoloLFG, IsSoloLFG)
+- `solo_lfg_lfgqueue_cpp.patch` — LFGQueue compatibility check changes
+
+> **Note:** These patches are **not currently applied during the Docker build**. The Dockerfile does not reference the `patches/` directory. To use them, apply manually with `git apply` or `patch` in the TrinityCore source tree before building. The patches modify LFGMgr to support undersized groups (1-4 players) by relaxing role requirements and auto-finishing role checks. They do **not** provide complete solo matchmaking on their own; the SoloLFG script provides notifications and logging.
 
 ## Healthchecks
 
@@ -192,6 +208,34 @@ SET portal "SERVER_IP"
 ### 3. Launch
 Use [Burralis](https://burralis.io/) launcher from the WoW client folder.
 
+## First-Start Validation
+
+After `docker compose up -d`, verify the deployment:
+
+```bash
+# Check all services are healthy
+docker compose ps
+
+# Expected output: all services show "Up (healthy)"
+# worldserver may take 60-90s to become healthy
+
+# Check server logs for readiness
+docker compose logs --tail=5 worldserver
+# Look for: "worldserver-daemon) ready..."
+
+# Check bnetserver registered the realm
+docker compose logs --tail=3 bnetserver
+# Look for: "Added realm \"Trinity\" at ..."
+
+# Verify database connectivity
+docker compose exec db mysql -uroot -ptrinity -e "SELECT 1" 2>&1 | grep -v Warning
+```
+
+**Signs of trouble:**
+- worldserver stuck at "health: starting" for > 3 minutes → check logs for errors
+- bnetserver unhealthy → check MySQL connection and realm registration
+- "Could not connect to MySQL" → database container may have failed to start
+
 ## Troubleshooting
 
 ### Login Stuck at Realmlist
@@ -227,6 +271,14 @@ Entrypoint tails log files to stdout. Check `/data/logs/` inside the container.
 -- Check creature HP after scaling
 SELECT guid, id, health, maxHealth FROM creature WHERE map = 36;
 ```
+
+## Internal Documentation
+
+- `docs/ai-learnings/README.md` — Internal engineering notes for AI agents (not user-facing)
+- `PLAN.md` — Historical plan for environment-based configuration (implemented)
+- `SOLO_LFG_PLAN.md` and `SOLO_LFG_PATCH_PLAN.md` (in `docker/`) — Historical proposals for Solo LFG (not current implementation; retained for reference)
+
+These files are retained for reference but do not represent current supported behavior.
 
 ## License
 

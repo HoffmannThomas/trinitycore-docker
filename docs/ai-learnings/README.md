@@ -1,6 +1,9 @@
-# AI Agent Learnings
+# AI Agent Learnings (Internal)
 
-Internal notes for AI agents working on this TrinityCore Docker stack. These are not user-facing documentation.
+> **This is internal engineering context for AI agents.** It is not a user-facing setup guide.
+> Users should refer to the main [README.md](../../README.md) and [docs/setup.md](../setup.md) instead.
+
+Internal notes for AI agents working on this TrinityCore Docker stack.
 
 ## Key Learnings
 

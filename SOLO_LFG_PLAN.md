@@ -1,3 +1,5 @@
+> **STATUS: Historical proposal.** This document describes a proposed approach that was not fully implemented. The actual patches are in `patches/`. Do not treat this as current supported behavior.
+
 # Plan: Solo/Small Group LFG for TrinityCore Master (12.1.5)
 
 ## Problem
