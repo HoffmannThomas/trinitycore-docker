@@ -1,168 +1,52 @@
 # TrinityCore Docker Stack
 
-Docker Compose stack for running [TrinityCore](https://github.com/TrinityCore/TrinityCore) (master branch) built from source, with MySQL 8.4.
+Docker Compose stack for running [TrinityCore](https://github.com/TrinityCore/TrinityCore) (master branch, WoW 12.x) built from source, with MySQL 8.4.
 
 ## Features
 
-- **Multi-stage Docker build** — separate build-tools layer, minimal runtime image
-- **BuildKit caching** — incremental rebuilds via ccache and build cache mounts
-- **Auto-setup** — automatically downloads TDB, creates databases, applies updates
-- **Map extraction** — includes extractor service for DBC/maps/vmaps/mmaps
+- **Multi-stage Docker build** — separate build-tools layer, minimal runtime image (~1.5GB)
+- **BuildKit caching** — incremental rebuilds via ccache + build cache mounts (5.3s no-change, 45s single-file)
+- **Auto-setup** — downloads TDB, creates databases, applies updates automatically
 - **Custom scripts** — SoloCraft (creature scaling) and SoloLFG (solo dungeon finder)
-- **Clean logging** — log files tailed to stdout for Docker log capture
-- **Console access** — named pipe for sending commands to the running server
+- **GM commands** — `.solocraft scale/info` for automated testing
+- **Healthchecks** — process + log verification for all services
+- **Clean logging** — timestamps, no spam, tailed to stdout
 - **Environment-based config** — all server-specific values in `.env` (gitignored)
+- **MySQL optimization** — 2GB buffer pool, 8 I/O threads, connection pooling
+- **Console access** — named pipe + RA console (port 3443) for remote commands
 
-## Prerequisites
-
-### Host System
-- Debian 12+ / Ubuntu 22.04+ (or compatible Linux)
-- 8+ CPU cores, 16GB+ RAM, 50GB+ free disk space
-- A Linux server with a `trinitycore` user
-
-### Docker
-- Docker Engine 24+ with Docker Compose v2
-- `docker` and `docker compose` commands available
-
-### Build Tools (for native map extraction)
-```bash
-sudo apt-get install -y \
-    clang cmake make gcc g++ \
-    libmysqlclient-dev libssl-dev libbz2-dev libreadline-dev libncurses-dev \
-    libboost-all-dev p7zip \
-    cifs-utils
-```
-
-### Build Caching (optional but recommended)
-```bash
-sudo apt-get install -y ccache
-```
-
-### Other
-- A WoW 12.1.5 client for map extraction
-- SSH access to the server
-
-## Server Setup
-
-### 1. Create the trinitycore user
+## Quick Start
 
 ```bash
-# As root on the server
-useradd -m -s /bin/bash trinitycore
-usermod -aG sudo,docker trinitycore
-echo 'trinitycore ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/trinitycore
-chmod 440 /etc/sudoers.d/trinitycore
-```
-
-### 2. Set up SSH access
-
-```bash
-# As trinitycore user
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-# Add your SSH public key to ~/.ssh/authorized_keys
-```
-
-### 3. Mount WoW client data (CIFS/SMB)
-
-The WoW client is typically on a Windows machine. Mount it via CIFS:
-
-```bash
-# Install cifs-utils
-sudo apt-get install -y cifs-utils
-
-# Create mount point
-sudo mkdir -p /mnt/wow-client
-
-# Create credentials file
-sudo bash -c 'echo "username=smb_user" > /root/.smbcredentials'
-sudo bash -c 'echo "password=smb_pass" >> /root/.smbcredentials'
-sudo chmod 600 /root/.smbcredentials
-
-# Add to /etc/fstab
-echo "//WINDOWS_IP/WoWShare /mnt/wow-client cifs credentials=/root/.smbcredentials,uid=1000,gid=1000,vers=3.0,nofail 0 0" | sudo tee -a /etc/fstab
-
-# Mount
-sudo mount -a
-```
-
-### 4. Clone and configure
-
-```bash
-# As trinitycore user
-cd /home/trinitycore
-
 # 1. Clone TrinityCore source
 git clone https://github.com/TrinityCore/TrinityCore.git
 cd TrinityCore
 
-# 2. Clone this docker stack INTO the TrinityCore repo as 'docker/'
+# 2. Clone this docker stack
 git clone https://github.com/HoffmannThomas/trinitycore-docker.git docker
-# Or: cp -r /path/to/trinitycore-docker/docker ./
 
 # 3. Configure
 cp docker/.env.example docker/.env
-# Edit docker/.env with your values (SERVER_IP, paths, passwords, etc.)
-```
+# Edit docker/.env with your values
 
-### 5. Build the image
+# 4. Build
+cd docker && docker compose build
 
-```bash
-cd docker
-docker compose build
-```
-
-First build takes ~10-15 minutes. Subsequent builds use cached layers.
-
-### 6. Build extraction tools (on host)
-
-The Docker image includes the tools, but CascLib has issues with network filesystems (CIFS/SMB).
-For WoW clients on a network share, build and run the tools natively on the host:
-
-```bash
-cd /home/trinitycore/TrinityCore
-mkdir -p tc-host-build && cd tc-host-build
-cmake .. -DTOOLS=1 -DSERVERS=0 -DSCRIPTS=0 -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-make -j$(nproc)
-# Tools are in: tc-host-build/bin/Release/bin/
-```
-
-### 7. Extract map data (on host, not in container)
-
-Run extractors from the WoW client directory:
-
-```bash
-cd /mnt/wow-client
-/home/trinitycore/tc-host-build/bin/Release/bin/mapextractor
-/home/trinitycore/tc-host-build/bin/Release/bin/vmap4extractor
-mkdir vmaps
-/home/trinitycore/tc-host-build/bin/Release/bin/vmap4assembler Buildings vmaps
-mkdir mmaps
-/home/trinitycore/tc-host-build/bin/Release/bin/mmaps_generator
-
-# Copy extracted data to local directory
-mkdir -p /home/trinitycore/tc-data
-cp -r dbc maps gt cameras vmaps mmaps /home/trinitycore/tc-data/
-```
-
-### 8. Start the stack
-
-```bash
-cd /home/trinitycore/TrinityCore/docker
+# 5. Start
 docker compose up -d
 ```
 
-First start downloads TDB (master) and auto-populates databases (~5-10 minutes).
+First start downloads TDB and auto-populates databases (~5-10 minutes).
 
-### 9. Create admin account
+## Prerequisites
 
-```bash
-# Send command to worldserver console
-docker exec trinitycore-worldserver-1 bash -c 'echo ".bnetaccount create admin@admin password" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
-# Set GM level
-docker exec trinitycore-worldserver-1 bash -c 'echo ".account set gmlevel 1#1 3 -1" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
-```
+- **Server**: Debian 12+ / Ubuntu 22.04+, 8+ CPU cores, 16GB+ RAM, 50GB+ disk
+- **Docker**: Engine 24+ with Compose v2
+- **Build tools**: clang, cmake, ccache (for native map extraction)
+- **WoW client**: 12.1.5.70783 (for map extraction)
+- **SSH access** to the server
+
+See [docs/setup.md](docs/setup.md) for detailed setup including CIFS mount, user creation, and map extraction.
 
 ## Configuration
 
@@ -171,24 +55,10 @@ docker exec trinitycore-worldserver-1 bash -c 'echo ".account set gmlevel 1#1 3 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_IP` | `127.0.0.1` | Server's public IP |
-| `SERVER_USER` | `trinitycore` | Server user |
-| `TRINITYCORE_SRC` | `/home/trinitycore/TrinityCore` | TrinityCore source path |
 | `TC_ETC_PATH` | `./tc-etc` | Config files path (bind mount) |
 | `TC_DATA_PATH` | `./tc-data` | Map data path (bind mount) |
-| `WOW_CLIENT_PATH` | `/mnt/wow-client` | WoW client mount path |
 | `MYSQL_ROOT_PASSWORD` | `trinity` | MySQL root password |
-| `DB_USER` | `trinity` | Database user |
-| `DB_PASS` | `trinity` | Database password |
-| `CERT_PATH` | `./certs` | Certificate path |
-
-### Volumes
-
-| Volume | Purpose |
-|--------|---------|
-| `db_data` | MySQL data (persistent) |
-| `tdb_data` | TDB extraction cache (persistent) |
-| `./tc-etc` | Config files (bind mount, editable) |
-| `./tc-data` | Map data (bind mount, read-write) |
+| `DB_USER` / `DB_PASS` | `trinity` | Database credentials |
 
 ### Ports
 
@@ -198,124 +68,164 @@ docker exec trinitycore-worldserver-1 bash -c 'echo ".account set gmlevel 1#1 3 
 | 8081 | Login REST API |
 | 8085 | World server |
 | 3306 | MySQL |
+| 3443 | Remote Access (RA) console |
 
 ## Custom Scripts
 
-Two custom scripts are included in `custom-scripts/`:
-
 ### SoloCraft
-Scales creature health and damage for solo players in dungeons.
-- Health multiplier: `5.0 / player_count`
-- Damage multiplier: `3.0 / player_count`
-- Only activates in dungeon/raid instances
-- Config: `solocraft.conf` (auto-created from `solocraft.conf.dist`)
+Scales creature health and damage for solo/small-group play in dungeons.
 
-### SoloLFG
-Enables solo dungeon finder notifications.
-- Notifies players on login that Solo LFG is available
-- Logs solo group creation
-- Config: `solo_lfg.conf` (auto-created from `solo_lfg.conf.dist`)
+**How it works:**
+- Party size scaling: `healthMult = playerCount / HealthMultiplier`
+- Level scaling: adjusts creature level to match player level
+- Content tuning is disabled (removes massive level-based HP multipliers)
+- HP and damage are scaled independently
 
-### Installation
-Copy the `.cpp` files to `TrinityCore/src/server/scripts/Custom/` and rebuild:
-```bash
-cp custom-scripts/*.cpp TrinityCore/src/server/scripts/Custom/
-cd TrinityCore
-mkdir build && cd build
-cmake .. -DSCRIPTS=static -DSERVERS=1 -DTOOLS=1
-make -j$(nproc)
+**Configuration** (`solocraft.conf`):
+```ini
+SoloCraft.Enable = 1
+SoloCraft.HealthMultiplier = 5.0    # 1 player = 5x, 5 players = 1x
+SoloCraft.DamageMultiplier = 3.0   # 1 player = 3x, 5 players = 1x
+SoloCraft.Announce = 1
+SoloCraft.LevelScaling = 1
+SoloCraft.MinLevelRatio = 0.5       # Minimum level ratio (prevents 0 HP)
+SoloCraft.MaxLevelDiff = 10         # Skip scaling if level spread > 10
 ```
 
-### Configuration
-Each script has its own config file (`.conf`), auto-created from `.conf.dist` on first run:
-- `solocraft.conf` — SoloCraft settings
-- `solo_lfg.conf` — SoloLFG settings
+**GM Command:**
+```
+.solocraft scale [level]   # Scale all creatures in current instance
+.solocraft info            # Show creature count and config
+```
 
-Edit these files directly; changes persist across restarts.
+**Notes:**
+- Only activates in dungeon/raid instances
+- Scaling is per-instance (tracked by spawn ID)
+- Re-entering the same instance doesn't compound scaling
+- Level changes trigger re-scaling
+
+### SoloLFG
+Enables solo dungeon finder notifications and core patches for solo LFG.
+
+**Configuration** (`solo_lfg.conf`):
+```ini
+SoloLFG.Enable = 1
+SoloLFG.AllowSoloQueue = 1
+```
+
+### Core Patches
+Minimal patches in `patches/` are applied during Docker build:
+- `lfg_solo_queue.patch` — Allow solo LFG queueing
+- `lfg_solo_group.patch` — Solo group creation support
+
+## Healthchecks
+
+All services have healthchecks that verify actual readiness:
+
+| Service | Check |
+|---------|-------|
+| **MySQL** | `mysqladmin ping` |
+| **bnetserver** | Process running + "Added realm" in log |
+| **worldserver** | Process running + "ready..." in log |
+
+Logs are cleared on startup to prevent stale healthcheck passes.
+
+## MySQL Optimization
+
+MySQL is tuned for TrinityCore workloads. See [docs/mysql-optimization.md](docs/mysql-optimization.md) for details.
+
+**Key settings:**
+- InnoDB buffer pool: 2GB
+- I/O threads: 8 read, 8 write
+- Max connections: 200
+- CPU limit: 4 cores, 4GB RAM
+
+## Startup Optimization
+
+Server startup takes ~60-90 seconds. See [docs/startup-optimization.md](docs/startup-optimization.md) for details.
+
+**Quick wins applied:**
+- BuildKit cache (5.3s no-change rebuild)
+- ccache (incremental builds)
+- `GridUnload = 1` (unload unused grids)
+- `UseProcessors = 0` (all cores)
+
+## GM Commands
+
+| Command | Description |
+|---------|-------------|
+| `.solocraft scale [level]` | Scale creatures in current instance |
+| `.solocraft info` | Show creature count and config |
+| `.tele <name> <location>` | Teleport to location |
+| `.npc info` | Check creature stats (target NPC first) |
+| `.character level <name> <level>` | Set character level |
+| `.gmannounce <msg>` | Server-wide announcement |
+
+### Remote Access (RA)
+Port 3443 provides a telnet-like console:
+```bash
+# Connect
+python3 -c "
+import socket
+s = socket.socket(); s.connect(('SERVER_IP', 3443))
+# Send username, password, then commands
+"
+```
 
 ## Client Setup
 
-### 1. Install the SSL Certificate (Required)
-
-The bnetserver uses a self-signed certificate. The WoW client requires this certificate
-to be trusted. Install it on your Windows client machine:
-
-1. Download the certificate from the server:
-   ```powershell
-   scp trinitycore@YOUR_SERVER_IP:/home/trinitycore/certs/bnetserver.cert.pem C:\temp\bnetserver.cert.pem
-   ```
-2. Install as Trusted Root (PowerShell as Administrator):
-   ```powershell
-   Import-Certificate -FilePath "C:\temp\bnetserver.cert.pem" -CertStoreLocation "Cert:\LocalMachine\Root"
-   ```
-3. Restart the WoW client.
-
-### 2. Configure the Client
-
-Edit `WTF/Config.wtf` in your WoW client folder:
-```
-SET portal "YOUR_SERVER_IP"
+### 1. Install SSL Certificate
+```powershell
+# Download cert from server
+scp trinitycore@SERVER_IP:/home/trinitycore/certs/bnetserver.cert.pem C:\temp\
+# Install as Trusted Root (Admin PowerShell)
+Import-Certificate -FilePath "C:\temp\bnetserver.cert.pem" -CertStoreLocation "Cert:\LocalMachine\Root"
 ```
 
-For WoW 12.x, the client connects to port 1119 (bnetserver) for authentication.
-
-### 3. Launch with Burralis
-
-[Burralis](https://burralis.io/) is a custom launcher for connecting to private servers.
-
-1. Download Burralis from https://burralis.io/
-2. Copy `Burralis Game Launcher.exe` into your WoW client folder
-3. Run it from the WoW folder
-4. Log in with your server credentials
-
-> **Note**: Burralis supports all Midnight (12.x) client releases. It does NOT support
-> The Last Titan (13.x) or Forever (1.60) clients.
-> The Burralis project may be handed over to the TrinityCore Team in the future,
-> which could bring official support and updates. Check https://burralis.io for the
-> latest compatibility information.
-
-### 4. Create Your Account
-
-After connecting, create an in-game account via the worldserver console:
-```bash
-docker exec trinitycore-worldserver-1 bash -c 'echo ".bnetaccount create email@domain password" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
-# Set GM level (3 = full admin)
-docker exec trinitycore-worldserver-1 bash -c 'echo ".account set gmlevel 1#1 3 -1" > /proc/$(pgrep -f worldserver | head -1)/fd/0'
+### 2. Configure Client
+Edit `WTF/Config.wtf`:
 ```
+SET portal "SERVER_IP"
+```
+
+### 3. Launch
+Use [Burralis](https://burralis.io/) launcher from the WoW client folder.
 
 ## Troubleshooting
 
+### Login Stuck at Realmlist
+- Restart bnetserver: `docker compose restart bnetserver`
+- Check realm registration: `docker logs trinitycore-bnetserver-1 | grep "Added realm"`
+
+### No Map Data
+Worldserver exits if DBC/map files are missing. Ensure `/data` contains `dbc/`, `maps/`, etc.
+
+### Logs Not Showing
+Entrypoint tails log files to stdout. Check `/data/logs/` inside the container.
+
 ### SSL Handshake Failed
-- Ensure the certificate is installed in "Trusted Root Certification Authorities" (Local Machine)
-- Restart the WoW client after installing
-- Check Burralis settings for certificate verification options
+- Install certificate in "Trusted Root Certification Authorities"
+- Restart WoW client after installing
 
-### Realmlist Configuration
-For remote clients, update the realmlist table:
+### Healthcheck Failing
+- Check if process is running: `docker exec <container> sh -c 'ls /proc/*/cmdline | xargs grep worldserver'`
+- Logs may be stale — restart container to clear
+
+## Automated Testing
+
+### Manual Workflow
+1. Log in with GM character
+2. `.tele deadmines`
+3. `.solocraft scale 10`
+4. `.npc info` on creatures
+5. Test combat
+6. Leave and re-enter → verify no compounding
+
+### SQL Verification
 ```sql
-UPDATE auth.realmlist SET address = 'YOUR_SERVER_IP', localAddress = 'YOUR_SERVER_IP' WHERE id = 1;
+-- Check creature HP after scaling
+SELECT guid, id, health, maxHealth FROM creature WHERE map = 36;
 ```
-
-### No Map Data
-The worldserver exits if DBC/map files are missing. Ensure `/data` contains `dbc/`, `maps/`, etc.
-
-### Logs Not Showing
-The entrypoint tails log files to stdout. Check `/data/logs/` inside the container.
-
-### Burralis Connection Issues
-- Ensure Burralis is configured with the correct server IP
-- Check that port 1119 is not blocked by Windows Firewall
-- Verify the WoW client version matches the server (12.1.5.70783)
-For remote clients, update the realmlist table:
-```sql
-UPDATE auth.realmlist SET address = 'YOUR_SERVER_IP', localAddress = 'YOUR_SERVER_IP' WHERE id = 1;
-```
-
-### No Map Data
-The worldserver exits if DBC/map files are missing. Ensure `/data` contains `dbc/`, `maps/`, etc.
-
-### Logs Not Showing
-The entrypoint tails log files to stdout. Check `/data/logs/` inside the container.
 
 ## License
 
